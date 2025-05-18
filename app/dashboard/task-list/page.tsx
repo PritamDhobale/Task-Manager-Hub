@@ -21,7 +21,14 @@ export default function TaskListPage() {
 
   useEffect(() => {
     const fetchMonthlyTasks = async () => {
-      const { data, error } = await supabase.from("monthly_tasks").select("*")
+      const { data, error } = await supabase
+      .from("monthly_tasks")
+      .select(`
+        *,
+        companies (
+          name
+        )
+      `)
       if (!error) setMonthlyTasks(data)
       else console.error("Failed to fetch monthly tasks:", error)
     }
@@ -235,7 +242,7 @@ export default function TaskListPage() {
                 {filteredMonthlyTasks.map((task) => (
                   <TableRow key={task.id}>
                     <TableCell className="font-medium">{task.title}</TableCell>
-                    <TableCell>{task.company}</TableCell>
+                    <TableCell>{task.companies?.name || "Unknown"}</TableCell>
                     <TableCell>
                       {task.category && <Badge className={getCategoryStyle(task.category)}>{task.category}</Badge>}
                     </TableCell>

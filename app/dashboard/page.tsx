@@ -116,10 +116,11 @@ function calculateProgress(tasksForCompany: Task[]): number {
     if (
       !newTask.title ||
       !newTask.company ||
+      !newTask.companyId ||
       !newTask.category ||
       !newTask.priority ||
       !newTask.dueDate ||
-      !newTask.taskType // Ensure taskType is selected
+      !newTask.taskType
     ) {
       toast({
         title: "Error",
@@ -129,57 +130,61 @@ function calculateProgress(tasksForCompany: Task[]): number {
       return
     }
   
-    // If task is marked as Monthly → insert into Supabase 'monthly_tasks' table
-    if (newTask.taskType === "Monthly") {
-      const { error } = await supabase.from("monthly_tasks").insert([
-        {
+    try {
+      if (newTask.taskType === "Monthly") {
+        // 🔁 Monthly Task → Insert into Supabase monthly_tasks table
+        const { error } = await supabase.from("monthly_tasks").insert([
+          {
+            title: newTask.title,
+            company_id: newTask.companyId,
+            category: newTask.category,
+            priority: newTask.priority,
+            status: newTask.status,
+            due_date: newTask.dueDate,
+            description: newTask.notes,
+          },
+        ])
+  
+        if (error) {
+          throw error
+        }
+  
+        toast({
+          title: "Success",
+          description: "Monthly task added successfully",
+          variant: "success",
+        })
+      } else {
+        // ✅ One-time Task → Add to context state (tasks)
+        addTask({
           title: newTask.title,
           company: newTask.company,
+          companyId: newTask.companyId.toString(),
+          dueDate: newTask.dueDate,
+          priority: newTask.priority as "High" | "Mid" | "Low",
+          status: newTask.status as "Not Started" | "In Progress",
+          description: newTask.notes,
           category: newTask.category,
-          priority: newTask.priority,
-          status: newTask.status,
-          due_date: newTask.dueDate,
-        },
-      ])
-  
-      if (error) {
-        toast({
-          title: "Error",
-          description: error.message,
-          variant: "destructive",
+          tags: [newTask.category],
         })
-        return
+  
+        toast({
+          title: "Success",
+          description: "Task added successfully",
+          variant: "success",
+        })
       }
   
+      // Reset form
+      resetForm()
+    } catch (err: any) {
       toast({
-        title: "Success",
-        description: "Monthly task added successfully",
-        variant: "success",
-      })
-    } else {
-      // One-time task → insert into app state
-      addTask({
-        title: newTask.title,
-        company: newTask.company,
-        companyId: newTask.companyId.toString(),
-        dueDate: newTask.dueDate,
-        priority: newTask.priority as "High" | "Mid" | "Low",
-        status: newTask.status as "Not Started" | "In Progress",
-        description: newTask.notes,
-        category: newTask.category,
-        tags: [newTask.category],
-      })
-  
-      toast({
-        title: "Success",
-        description: "Task added successfully",
-        variant: "success",
+        title: "Error",
+        description: err.message || "Something went wrong",
+        variant: "destructive",
       })
     }
-  
-    // Reset the form
-    resetForm()
-  }
+  }  
   
 
   // Handle company selection
