@@ -2,21 +2,39 @@
 
 import { useState } from "react"
 import { useRouter } from "next/navigation"
+import { supabase } from "@/lib/supabaseClient"
 import "./login.css"
+
+const allowedEmails = ["admin@hubone.com", "vchittam@sagehealthy.com"] // ✅ Add your allowed users here
 
 export default function LoginPage() {
   const router = useRouter()
-  const [username, setUsername] = useState("")
+  const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
+  const [error, setError] = useState("")
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
-    router.push("/dashboard")
+
+    if (!allowedEmails.includes(email.toLowerCase())) {
+      setError("Access denied: You are not authorized to use this system.")
+      return
+    }
+
+    const { error } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    })
+
+    if (error) {
+      setError("Invalid credentials. Please try again.")
+    } else {
+      router.push("/dashboard")
+    }
   }
 
   return (
     <div className="login-page">
-      {/* ✅ Top Logo - matching client DB webapp */}
       <div className="logo-wrapper">
         <img
           src="/images/sage_healthy_rcm_logo.png"
@@ -25,21 +43,16 @@ export default function LoginPage() {
         />
       </div>
 
-      {/* ✅ Login Box */}
       <div className="login-box">
-        <img
-          src="/images/taskshub.png"
-          alt="TaskHub"
-          className="login-logo-img"
-        />
+        <img src="/images/taskshub.png" alt="TaskHub" className="login-logo-img" />
 
         <form onSubmit={handleLogin} style={{ width: "100%" }}>
-          <label>Username</label>
+          <label>Email</label>
           <input
-            type="text"
-            placeholder="Enter your username"
-            value={username}
-            onChange={(e) => setUsername(e.target.value)}
+            type="email"
+            placeholder="Enter your email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
             required
           />
 
@@ -52,21 +65,16 @@ export default function LoginPage() {
             required
           />
 
+          {error && <p style={{ color: "red", fontSize: "12px", marginTop: "4px" }}>{error}</p>}
+
           <button type="submit" className="login-btn">
             LOG IN
           </button>
         </form>
       </div>
 
-      {/* ✅ Powered by (updated to match single-line version) */}
-      <div className="powered-by-text">
-        POWERED BY HUBONE SYSTEMS
-      </div>
-
-      {/* ✅ Footer */}
-      <p className="footer-text">
-        © 2014–2025 HubOne Systems Inc. – All Rights Reserved
-      </p>
+      <div className="powered-by-text">POWERED BY HUBONE SYSTEMS</div>
+      <p className="footer-text">© 2014–2025 HubOne Systems Inc. – All Rights Reserved</p>
     </div>
   )
 }

@@ -1,6 +1,8 @@
 "use client"
 
 import { useState } from "react"
+import { useEffect } from "react"
+import { supabase } from "@/lib/supabaseClient"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
@@ -15,6 +17,17 @@ export default function TaskListPage() {
   const { tasks, deletedTasks, restoreTask } = useTasks()
   const [viewMode, setViewMode] = useState<"active" | "completed" | "deleted">("active")
   const [monthlyViewMode, setMonthlyViewMode] = useState<"active" | "completed" | "deleted">("active")
+  const [monthlyTasks, setMonthlyTasks] = useState<any[]>([])
+
+  useEffect(() => {
+    const fetchMonthlyTasks = async () => {
+      const { data, error } = await supabase.from("monthly_tasks").select("*")
+      if (!error) setMonthlyTasks(data)
+      else console.error("Failed to fetch monthly tasks:", error)
+    }
+  
+    fetchMonthlyTasks()
+  }, [])
 
   // Search and filter state
   const [searchQuery, setSearchQuery] = useState("")
@@ -22,53 +35,7 @@ export default function TaskListPage() {
   const [statusFilter, setStatusFilter] = useState("all")
 
   // Monthly recurring tasks data - Update "Pending" to "Not Started"
-  const monthlyTasks = [
-    {
-      id: 1,
-      title: "Submit Invoice",
-      company: "Sage Healthy",
-      dueDate: "1st of every month",
-      priority: "High",
-      status: "Not Started",
-      category: "Finance",
-    },
-    {
-      id: 2,
-      title: "Review Billing Reports",
-      company: "HubOne Systems",
-      dueDate: "5th of every month",
-      priority: "Mid",
-      status: "In Progress",
-      category: "Reporting",
-    },
-    {
-      id: 3,
-      title: "Monthly Payroll Processing",
-      company: "Gentyx",
-      dueDate: "28th of every month",
-      priority: "High",
-      status: "Not Started",
-      category: "Finance",
-    },
-    {
-      id: 4,
-      title: "Expense Reconciliation",
-      company: "Sage Healthy Global",
-      dueDate: "Last day of month",
-      priority: "Low",
-      status: "Completed",
-      category: "Finance",
-    },
-    {
-      id: 5,
-      title: "Monthly Financial Summary",
-      company: "HoldCos",
-      dueDate: "7th of every month",
-      priority: "Mid",
-      status: "In Progress",
-      category: "Reporting",
-    },
-  ]
+  
 
   // Filter tasks based on view mode, search query, and filters
   const filteredTasks = tasks.filter((task) => {
@@ -161,12 +128,13 @@ export default function TaskListPage() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Task</TableHead>
-                  <TableHead>Company Name</TableHead>
-                  <TableHead>Category</TableHead>
-                  <TableHead>Priority</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Due Date</TableHead>
+                <TableHead className="w-[220px]">Task</TableHead>
+<TableHead className="w-[200px]">Company Name</TableHead>
+<TableHead className="w-[150px]">Category</TableHead>
+<TableHead className="w-[120px]">Priority</TableHead>
+<TableHead className="w-[140px]">Status</TableHead>
+<TableHead className="w-[160px]">Due Date</TableHead>
+
                   {viewMode === "deleted" && <TableHead>Actions</TableHead>}
                 </TableRow>
               </TableHeader>
@@ -254,12 +222,13 @@ export default function TaskListPage() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Task</TableHead>
-                  <TableHead>Company Name</TableHead>
-                  <TableHead>Category</TableHead>
-                  <TableHead>Priority</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Due Date</TableHead>
+                <TableHead className="w-[220px]">Task</TableHead>
+<TableHead className="w-[200px]">Company Name</TableHead>
+<TableHead className="w-[150px]">Category</TableHead>
+<TableHead className="w-[120px]">Priority</TableHead>
+<TableHead className="w-[140px]">Status</TableHead>
+<TableHead className="w-[160px]">Due Date</TableHead>
+
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -276,7 +245,7 @@ export default function TaskListPage() {
                     <TableCell>
                       <Badge className={getStatusBadgeStyle(task.status)}>{task.status}</Badge>
                     </TableCell>
-                    <TableCell>{task.dueDate}</TableCell>
+                    <TableCell>{task.due_date}</TableCell>
                   </TableRow>
                 ))}
               </TableBody>

@@ -20,6 +20,21 @@ import TaskSearchFilter from "@/components/task-search-filter"
 import { useToast } from "@/hooks/use-toast"
 import { useEffect } from "react"
 import { supabase } from "@/lib/supabaseClient"
+import { useMonthlyTasks } from "@/contexts/monthly-task-context"
+
+type MonthlyTask = {
+  id: string
+  title: string
+  company: string
+  companyId: string
+  description: string
+  category: string
+  priority: "High" | "Mid" | "Low"
+  status: "Not Started" | "In Progress" | "Completed"
+  dueDate: string
+  taskType: "One-time" | "Monthly"
+}
+
 
 export default function CompanyPage() {
   const params = useParams()
@@ -30,6 +45,7 @@ export default function CompanyPage() {
 
   // Task context
   const { tasks, addTask, updateTask, deleteTask } = useTasks()
+  const { monthlyTasks } = useMonthlyTasks()
 
   // Search and filter state
   const [searchQuery, setSearchQuery] = useState("")
@@ -44,6 +60,7 @@ export default function CompanyPage() {
     status: "Not Started", // Updated from "Pending"
     dueDate: new Date().toISOString().split("T")[0],
     description: "",
+    taskType: "One-time",
   })
 
   // Sample company data
@@ -65,8 +82,8 @@ export default function CompanyPage() {
     }
     fetchCompanies()
   }, [])
-  
 
+   
   const company = companies.find((c) => c.id.toString() === companyId)
   if (!company) return <div>Loading company info...</div>
 
@@ -93,8 +110,30 @@ export default function CompanyPage() {
     return true
   })
 
+  const companyMonthlyTasks = monthlyTasks.filter((task) => {
+    // Filter by company
+    if (task.companyId.toString() !== companyId) return false
+  
+    // Filter by search query
+    if (
+      searchQuery &&
+      !task.title.toLowerCase().includes(searchQuery.toLowerCase()) &&
+      !task.category?.toLowerCase().includes(searchQuery.toLowerCase())
+    ) {
+      return false
+    }
+  
+    // Filter by priority
+    if (priorityFilter !== "all" && task.priority !== priorityFilter) return false
+  
+    // Filter by status
+    if (statusFilter !== "all" && task.status !== statusFilter) return false
+  
+    return true
+  })
+  
 
-
+  
   const handleAddTask = () => {
     addTask({
       title: newTask.title,
@@ -117,6 +156,7 @@ export default function CompanyPage() {
       status: "Not Started", // Updated from "Pending"
       dueDate: new Date().toISOString().split("T")[0],
       description: "",
+      taskType: "One-time",
     })
     setIsAddTaskOpen(false)
 
@@ -316,6 +356,21 @@ export default function CompanyPage() {
                         <SelectItem value="Not Started">Not Started</SelectItem>
                       </SelectContent>
                     </Select>
+                  </div>
+                  <div className="grid gap-2">
+                  <Label htmlFor="taskType">Task Type</Label>
+                  <Select
+                    value={newTask.taskType}
+                    onValueChange={(value) => setNewTask({ ...newTask, taskType: value })}
+                  >
+                    <SelectTrigger id="taskType" className="rounded-none">
+                      <SelectValue placeholder="Select task type" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="One-time">One-time</SelectItem>
+                      <SelectItem value="Monthly">Monthly</SelectItem>
+                    </SelectContent>
+                  </Select>
                   </div>
                 </div>
                 <div className="grid gap-2">
@@ -536,6 +591,204 @@ export default function CompanyPage() {
           </div>
         </CardContent>
       </Card>
+
+      {/* for Monthly Tasks */}
+      <Card className="shadow-sm rounded-xl">
+  <CardHeader>
+    <CardTitle className="text-lg">Monthly Occurring Tasks</CardTitle>
+  </CardHeader>
+  <CardContent>
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      {companyMonthlyTasks.length > 0 ? (
+        companyMonthlyTasks.map((task) => (
+          <Card key={task.id} className="shadow-sm rounded-xl">
+            <CardContent className="p-4">
+              <div className="flex justify-between items-start mb-2">
+                <div>
+                  <h3 className="font-medium text-lg">{task.title}</h3>
+                  {task.category && <Badge className={getCategoryStyle(task.category)}>{task.category}</Badge>}
+                </div>
+                <Dialog>
+                      <DialogTrigger asChild>
+                        <Button variant="outline" size="sm" className="h-8 rounded-xl">
+                          Edit
+                        </Button>
+                      </DialogTrigger>
+                      <DialogContent className="sm:max-w-[500px]">
+                        <DialogHeader>
+                          <DialogTitle>Edit Task</DialogTitle>
+                        </DialogHeader>
+                        <div className="grid gap-4 py-4">
+                          <div className="grid gap-2">
+                            <Label htmlFor={`editTaskName-${task.id}`}>Task Name</Label>
+                            <Input
+                              id={`editTaskName-${task.id}`}
+                              defaultValue={task.title}
+                              className="rounded-none"
+                              onChange={(e) => {
+                                const updatedTask = { ...task, title: e.target.value }
+                                updateTask(updatedTask)
+                              }}
+                            />
+                          </div>
+                          <div className="grid gap-2">
+                            <Label htmlFor={`editCompany-${task.id}`}>Company</Label>
+                            <Select
+                              defaultValue={task.companyId.toString()}
+                              onValueChange={(value) => handleCompanyChange(task.id, value)}
+                            >
+                              <SelectTrigger id={`editCompany-${task.id}`} className="rounded-none">
+                                <SelectValue placeholder="Select company" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {companies.map((c) => (
+                                  <SelectItem key={c.id} value={c.id.toString()}>
+                                    {c.name}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
+                          <div className="grid gap-2">
+                            <Label htmlFor={`editCategory-${task.id}`}>Category</Label>
+                            <Select
+                              defaultValue={task.category}
+                              onValueChange={(value) => {
+                                const updatedTask = { ...task, category: value, tags: [value] }
+                                updateTask(updatedTask)
+                              }}
+                            >
+                              <SelectTrigger id={`editCategory-${task.id}`} className="rounded-none">
+                                <SelectValue placeholder="Select category" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {CATEGORIES.map((category) => (
+                                  <SelectItem key={category} value={category}>
+                                    {category}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
+                          <div className="grid grid-cols-2 gap-4">
+                            <div className="grid gap-2">
+                              <Label htmlFor={`editPriority-${task.id}`}>Priority</Label>
+                              <Select
+                                defaultValue={task.priority}
+                                onValueChange={(value) => {
+                                  const updatedTask = { ...task, priority: value as "High" | "Mid" | "Low" }
+                                  updateTask(updatedTask)
+                                }}
+                              >
+                                <SelectTrigger id={`editPriority-${task.id}`} className="rounded-none">
+                                  <SelectValue placeholder="Select priority" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="High">High</SelectItem>
+                                  <SelectItem value="Mid">Mid</SelectItem>
+                                  <SelectItem value="Low">Low</SelectItem>
+                                </SelectContent>
+                              </Select>
+                            </div>
+                            <div className="grid gap-2">
+                              <Label htmlFor={`editStatus-${task.id}`}>Status</Label>
+                              <Select
+                                defaultValue={task.status}
+                                onValueChange={(value) => {
+                                  const updatedTask = {
+                                    ...task,
+                                    status: value as "Completed" | "In Progress" | "Not Started",
+                                  }
+                                  updateTask(updatedTask)
+                                }}
+                              >
+                                <SelectTrigger id={`editStatus-${task.id}`} className="rounded-none">
+                                  <SelectValue placeholder="Select status" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="Completed">Completed</SelectItem>
+                                  <SelectItem value="In Progress">In Progress</SelectItem>
+                                  <SelectItem value="Not Started">Not Started</SelectItem>
+                                </SelectContent>
+                              </Select>
+                            </div>
+                          </div>
+                          <div className="grid gap-2">
+                            <Label htmlFor={`editDueDate-${task.id}`}>Due Date</Label>
+                            <Input
+                              id={`editDueDate-${task.id}`}
+                              type="date"
+                              defaultValue={task.dueDate}
+                              className="rounded-none"
+                              onChange={(e) => {
+                                const updatedTask = { ...task, dueDate: e.target.value }
+                                updateTask(updatedTask)
+                              }}
+                            />
+                          </div>
+                          <div className="grid gap-2">
+                            <Label htmlFor={`editNotes-${task.id}`}>Notes</Label>
+                            <Textarea
+                              id={`editNotes-${task.id}`}
+                              defaultValue={task.description}
+                              className="rounded-none"
+                              onChange={(e) => {
+                                const updatedTask = { ...task, description: e.target.value }
+                                updateTask(updatedTask)
+                              }}
+                            />
+                          </div>
+                          <div className="flex justify-between mt-2">
+                            <Button
+                              type="button"
+                              variant="destructive"
+                              className="bg-red-500 hover:bg-red-600 rounded-xl"
+                              onClick={() => handleDeleteTask(task.id)}
+                            >
+                              <Trash2 className="h-4 w-4 mr-1" /> Delete Task
+                            </Button>
+                            <Button
+                              type="button"
+                              className="bg-[#8BC53D] hover:bg-[#476E2C] rounded-xl"
+                              onClick={() => {
+                                // Close the dialog
+                                document
+                                  .querySelector(`[data-state="open"]`)
+                                  ?.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" }))
+
+                                // Show success toast
+                                toast({
+                                  variant: "success",
+                                  title: "Success",
+                                  description: "Task updated successfully!",
+                                })
+                              }}
+                            >
+                              Save Changes
+                            </Button>
+                          </div>
+                        </div>
+                      </DialogContent>
+                    </Dialog>
+              </div>
+              <p className="text-gray-600 mb-3">{task.description}</p>
+              <div className="flex flex-wrap justify-between items-center">
+                <p className="text-sm text-gray-500">Due: {task.dueDate}</p>
+                <div className="flex gap-2">
+                  <Badge className={getPriorityBadgeStyle(task.priority)}>{task.priority}</Badge>
+                  <Badge className={getStatusBadgeStyle(task.status)}>{task.status}</Badge>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        ))
+      ) : (
+        <div className="text-sm text-gray-500">No monthly tasks found for this company.</div>
+      )}
+    </div>
+  </CardContent>
+</Card>
+
     </div>
   )
 }

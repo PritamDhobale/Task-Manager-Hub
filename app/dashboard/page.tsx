@@ -31,6 +31,7 @@ export default function DashboardPage() {
     category: "",
     priority: "",
     status: "Not Started", // Default status
+    taskType: "One-time", // default
     dueDate: "",
     notes: "",
   })
@@ -44,6 +45,7 @@ export default function DashboardPage() {
       category: "",
       priority: "",
       status: "Not Started", // Default status
+      taskType: "One-time", // default
       dueDate: "",
       notes: "",
     })
@@ -107,11 +109,18 @@ function calculateProgress(tasksForCompany: Task[]): number {
   ).length
 
   // Handle form submission
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-
+  
     // Validate form
-    if (!newTask.title || !newTask.company || !newTask.category || !newTask.priority || !newTask.dueDate) {
+    if (
+      !newTask.title ||
+      !newTask.company ||
+      !newTask.category ||
+      !newTask.priority ||
+      !newTask.dueDate ||
+      !newTask.taskType // Ensure taskType is selected
+    ) {
       toast({
         title: "Error",
         description: "Please fill in all required fields",
@@ -119,30 +128,59 @@ function calculateProgress(tasksForCompany: Task[]): number {
       })
       return
     }
-
-    // Add task to global state
-    addTask({
-      title: newTask.title,
-      company: newTask.company,
-      companyId: newTask.companyId.toString(),
-      dueDate: newTask.dueDate,
-      priority: newTask.priority as "High" | "Mid" | "Low",
-      status: newTask.status as "Not Started" | "In Progress", // Use the selected status
-      description: newTask.notes,
-      category: newTask.category,
-      tags: [newTask.category], // Use category as a tag
-    })
-
-    // Show success message
-    toast({
-      title: "Success",
-      description: "Task added successfully",
-      variant: "success",
-    })
-
-    // Reset form
+  
+    // If task is marked as Monthly → insert into Supabase 'monthly_tasks' table
+    if (newTask.taskType === "Monthly") {
+      const { error } = await supabase.from("monthly_tasks").insert([
+        {
+          title: newTask.title,
+          company: newTask.company,
+          category: newTask.category,
+          priority: newTask.priority,
+          status: newTask.status,
+          due_date: newTask.dueDate,
+        },
+      ])
+  
+      if (error) {
+        toast({
+          title: "Error",
+          description: error.message,
+          variant: "destructive",
+        })
+        return
+      }
+  
+      toast({
+        title: "Success",
+        description: "Monthly task added successfully",
+        variant: "success",
+      })
+    } else {
+      // One-time task → insert into app state
+      addTask({
+        title: newTask.title,
+        company: newTask.company,
+        companyId: newTask.companyId.toString(),
+        dueDate: newTask.dueDate,
+        priority: newTask.priority as "High" | "Mid" | "Low",
+        status: newTask.status as "Not Started" | "In Progress",
+        description: newTask.notes,
+        category: newTask.category,
+        tags: [newTask.category],
+      })
+  
+      toast({
+        title: "Success",
+        description: "Task added successfully",
+        variant: "success",
+      })
+    }
+  
+    // Reset the form
     resetForm()
   }
+  
 
   // Handle company selection
   const handleCompanyChange = (value: string) => {
@@ -263,6 +301,23 @@ function calculateProgress(tasksForCompany: Task[]): number {
                     </SelectContent>
                   </Select>
                 </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="taskType">Task Type</Label>
+                  <Select
+                    value={newTask.taskType}
+                    onValueChange={(value) => setNewTask({ ...newTask, taskType: value })}
+                  >
+                    <SelectTrigger id="taskType" className="rounded-none">
+                      <SelectValue placeholder="Select task type" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="One-time">One-time</SelectItem>
+                      <SelectItem value="Monthly">Monthly</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
 
                 <div className="space-y-2">
                   <Label htmlFor="dueDate">Due Date</Label>

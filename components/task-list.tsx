@@ -44,8 +44,13 @@ export default function TaskList({ className }: TaskListProps) {
                   <p className="text-sm text-[#050505]">{task.company}</p>
                 </div>
                 <div className="flex flex-wrap gap-2">
-                  <Badge className={getPriorityBadgeStyle(task.priority)}>{task.priority}</Badge>
-                  <Badge className={getStatusBadgeStyle(task.status)}>{task.status}</Badge>
+                <Badge className={`${getPriorityBadgeStyle(task.priority)} min-w-[80px] text-center`}>
+  {task.priority}
+</Badge>
+<Badge className={`${getStatusBadgeStyle(task.status)} min-w-[100px] text-center`}>
+  {task.status}
+</Badge>
+
                 </div>
               </div>
             ))

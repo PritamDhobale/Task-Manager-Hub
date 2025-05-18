@@ -5,6 +5,7 @@ import "./globals.css"
 import { ProfileProvider } from "@/contexts/profile-context"
 import { SettingsProvider } from "@/contexts/settings-context"
 import { TaskProvider } from "@/contexts/task-context"
+import { MonthlyTaskProvider } from "@/contexts/monthly-task-context"
 import { Toaster } from "@/components/ui/toaster"
 
 const inter = Inter({ subsets: ["latin"] })
@@ -26,8 +27,10 @@ export default function RootLayout({
         <SettingsProvider>
           <ProfileProvider>
             <TaskProvider>
+            <MonthlyTaskProvider>
               {children}
               <Toaster />
+              </MonthlyTaskProvider>
             </TaskProvider>
           </ProfileProvider>
         </SettingsProvider>
