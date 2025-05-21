@@ -13,6 +13,17 @@ import { Undo2 } from "lucide-react"
 import { useTasks } from "@/contexts/task-context"
 import TaskSearchFilter from "@/components/task-search-filter"
 
+function getDaySuffix(day: number): string {
+  if (day >= 11 && day <= 13) return "th"
+  switch (day % 10) {
+    case 1: return "st"
+    case 2: return "nd"
+    case 3: return "rd"
+    default: return "th"
+  }
+}
+
+
 export default function TaskListPage() {
   const { tasks, deletedTasks, restoreTask } = useTasks()
   const [viewMode, setViewMode] = useState<"active" | "completed" | "deleted">("active")
@@ -252,7 +263,11 @@ export default function TaskListPage() {
                     <TableCell>
                       <Badge className={getStatusBadgeStyle(task.status)}>{task.status}</Badge>
                     </TableCell>
-                    <TableCell>{task.due_date}</TableCell>
+                    <TableCell>
+  {new Date(task.due_date).getDate()}
+  <sup>{getDaySuffix(new Date(task.due_date).getDate())}</sup> of every month
+</TableCell>
+
                   </TableRow>
                 ))}
               </TableBody>

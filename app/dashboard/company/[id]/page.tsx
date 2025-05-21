@@ -35,6 +35,16 @@ type MonthlyTask = {
   taskType: "One-time" | "Monthly"
 }
 
+function getDaySuffix(day: number): string {
+  if (day >= 11 && day <= 13) return "th"
+  switch (day % 10) {
+    case 1: return "st"
+    case 2: return "nd"
+    case 3: return "rd"
+    default: return "th"
+  }
+}
+
 
 export default function CompanyPage() {
   const params = useParams()
@@ -45,7 +55,7 @@ export default function CompanyPage() {
 
   // Task context
   const { tasks, addTask, updateTask, deleteTask } = useTasks()
-  const { monthlyTasks } = useMonthlyTasks()
+  const { monthlyTasks, reloadMonthlyTasks } = useMonthlyTasks()
 
   // Search and filter state
   const [searchQuery, setSearchQuery] = useState("")
@@ -110,63 +120,86 @@ export default function CompanyPage() {
     return true
   })
 
-  const companyMonthlyTasks = monthlyTasks.filter((task) => {
+  // const companyMonthlyTasks = monthlyTasks.filter((task) => {
     // Filter by company
-    if (task.companyId.toString() !== companyId) return false
-  
-    // Filter by search query
-    if (
-      searchQuery &&
-      !task.title.toLowerCase().includes(searchQuery.toLowerCase()) &&
-      !task.category?.toLowerCase().includes(searchQuery.toLowerCase())
-    ) {
-      return false
-    }
-  
-    // Filter by priority
-    if (priorityFilter !== "all" && task.priority !== priorityFilter) return false
-  
-    // Filter by status
-    if (statusFilter !== "all" && task.status !== statusFilter) return false
-  
-    return true
-  })
-  
-
-  
-  const handleAddTask = () => {
-    addTask({
-      title: newTask.title,
-      company: company.name,
-      companyId: companyId,
-      dueDate: newTask.dueDate,
-      priority: newTask.priority as "High" | "Mid" | "Low",
-      status: newTask.status as "Completed" | "In Progress" | "Not Started",
-      description: newTask.description,
-      category: newTask.category,
-      tags: [newTask.category], // Use category as a tag
-    })
+    // if (task.companyId.toString() !== companyId) return false
+    const companyMonthlyTasks = monthlyTasks.filter((task) => {
+      if (task.companyId?.toString() !== companyId) return false
     
+      if (
+        searchQuery &&
+        !task.title.toLowerCase().includes(searchQuery.toLowerCase()) &&
+        !task.category?.toLowerCase().includes(searchQuery.toLowerCase())
+      ) return false
+    
+      if (priorityFilter !== "all" && task.priority !== priorityFilter) return false
+      if (statusFilter !== "all" && task.status !== statusFilter) return false
+    
+      return true
+    })    
+  
 
-    // Reset form and close dialog
-    setNewTask({
-      title: "",
-      category: "",
-      priority: "Mid",
-      status: "Not Started", // Updated from "Pending"
-      dueDate: new Date().toISOString().split("T")[0],
-      description: "",
-      taskType: "One-time",
-    })
-    setIsAddTaskOpen(false)
-
-    // Show success toast
-    toast({
-      variant: "success",
-      title: "Success",
-      description: "Task added successfully!",
-    })
-  }
+  
+    const handleAddTask = async () => {
+      if (newTask.taskType === "Monthly") {
+        const { error } = await supabase.from("monthly_tasks").insert({
+          title: newTask.title,
+          company_id: companyId,
+          due_date: newTask.dueDate,
+          priority: newTask.priority,
+          status: newTask.status,
+          description: newTask.description,
+          category: newTask.category,
+          tags: [newTask.category],
+        })
+    
+        if (error) {
+          toast({
+            variant: "destructive",
+            title: "Error",
+            description: "Failed to create monthly task",
+          })
+          return
+        }
+    
+        // ✅ Reload context so the new task shows up immediately
+        await reloadMonthlyTasks()
+    
+      } else {
+        addTask({
+          title: newTask.title,
+          company: company.name,
+          companyId,
+          dueDate: newTask.dueDate,
+          priority: newTask.priority as "High" | "Mid" | "Low",
+          status: newTask.status as "Completed" | "In Progress" | "Not Started",
+          description: newTask.description,
+          category: newTask.category,
+          tags: [newTask.category],
+        })
+      }
+    
+      // ✅ Reset form
+      setNewTask({
+        title: "",
+        category: "",
+        priority: "Mid",
+        status: "Not Started",
+        dueDate: new Date().toISOString().split("T")[0],
+        description: "",
+        taskType: "One-time",
+      })
+    
+      setIsAddTaskOpen(false)
+    
+      toast({
+        variant: "success",
+        title: "Success",
+        description: "Task added successfully!",
+      })
+    }
+    
+    
 
   const handleUpdateTask = (updatedTask: any) => {
     updateTask(updatedTask)
@@ -218,6 +251,16 @@ export default function CompanyPage() {
       }
     }
   }
+
+  function getReadableMonthlyDate(dateString: string): string {
+    const day = new Date(dateString).getDate()
+    const suffix =
+      day >= 11 && day <= 13
+        ? "th"
+        : ["st", "nd", "rd"][((day % 10) - 1)] || "th"
+    return `${day}${suffix} of every month`
+  }
+  
 
   // Calculate metrics
   const totalTasks = companyTasks.length
@@ -773,7 +816,11 @@ export default function CompanyPage() {
               </div>
               <p className="text-gray-600 mb-3">{task.description}</p>
               <div className="flex flex-wrap justify-between items-center">
-                <p className="text-sm text-gray-500">Due: {task.dueDate}</p>
+              <p className="text-sm text-gray-500">
+  Due: {new Date(task.dueDate).getDate()}
+  <sup>{getDaySuffix(new Date(task.dueDate).getDate())}</sup> of every month
+</p>
+
                 <div className="flex gap-2">
                   <Badge className={getPriorityBadgeStyle(task.priority)}>{task.priority}</Badge>
                   <Badge className={getStatusBadgeStyle(task.status)}>{task.status}</Badge>

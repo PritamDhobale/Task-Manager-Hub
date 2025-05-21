@@ -18,6 +18,7 @@ export interface MonthlyTask {
 
 interface MonthlyTaskContextType {
   monthlyTasks: MonthlyTask[]
+  reloadMonthlyTasks: () => Promise<void>
   addMonthlyTask: (task: Omit<MonthlyTask, "id">) => Promise<void>
   updateMonthlyTask: (task: MonthlyTask) => Promise<void>
   deleteMonthlyTask: (taskId: string) => Promise<void>
@@ -96,8 +97,8 @@ export function MonthlyTaskProvider({ children }: { children: React.ReactNode })
 
   return (
     <MonthlyTaskContext.Provider
-      value={{ monthlyTasks, addMonthlyTask, updateMonthlyTask, deleteMonthlyTask }}
-    >
+    value={{ monthlyTasks, reloadMonthlyTasks: loadMonthlyTasks, addMonthlyTask, updateMonthlyTask, deleteMonthlyTask }}
+  >
       {children}
     </MonthlyTaskContext.Provider>
   )
