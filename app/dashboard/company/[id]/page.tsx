@@ -21,6 +21,8 @@ import { useToast } from "@/hooks/use-toast"
 import { useEffect } from "react"
 import { supabase } from "@/lib/supabaseClient"
 import { useMonthlyTasks } from "@/contexts/monthly-task-context"
+import { User } from "@supabase/supabase-js"
+
 
 type MonthlyTask = {
   id: string
@@ -33,6 +35,7 @@ type MonthlyTask = {
   status: "Not Started" | "In Progress" | "Completed"
   dueDate: string
   taskType: "One-time" | "Monthly"
+  created_by: string
 }
 
 function getDaySuffix(day: number): string {
@@ -47,6 +50,17 @@ function getDaySuffix(day: number): string {
 
 
 export default function CompanyPage() {
+  const [user, setUser] = useState<User | null>(null)
+
+useEffect(() => {
+  const getUser = async () => {
+    const { data: { user } } = await supabase.auth.getUser()
+    setUser(user)
+  }
+  getUser()
+}, [])
+
+
   const params = useParams()
   const router = useRouter()
   const companyId = params.id as string
@@ -55,7 +69,7 @@ export default function CompanyPage() {
 
   // Task context
   const { tasks, addTask, updateTask, deleteTask } = useTasks()
-  const { monthlyTasks, reloadMonthlyTasks } = useMonthlyTasks()
+  const { monthlyTasks, reloadMonthlyTasks, updateMonthlyTask } = useMonthlyTasks()
 
   // Search and filter state
   const [searchQuery, setSearchQuery] = useState("")
@@ -99,10 +113,12 @@ export default function CompanyPage() {
 
   // Filter tasks for this company
   const companyTasks = tasks.filter((task) => {
-    // Filter by company
-    if (task.companyId !== companyId) return false
-
-    // Filter by search query
+    if (!user) return false // ✅ Ensure user is loaded before filtering
+  
+    // ✅ Match company AND ensure task was created by current user only
+    if (task.companyId !== companyId || task.created_by !== user.id) return false
+  
+    // ✅ Filter by search query
     if (
       searchQuery &&
       !task.title.toLowerCase().includes(searchQuery.toLowerCase()) &&
@@ -110,37 +126,49 @@ export default function CompanyPage() {
     ) {
       return false
     }
-
-    // Filter by priority
+  
+    // ✅ Filter by priority
     if (priorityFilter !== "all" && task.priority !== priorityFilter) return false
-
-    // Filter by status
+  
+    // ✅ Filter by status
     if (statusFilter !== "all" && task.status !== statusFilter) return false
-
+  
     return true
   })
+  
 
   // const companyMonthlyTasks = monthlyTasks.filter((task) => {
     // Filter by company
     // if (task.companyId.toString() !== companyId) return false
     const companyMonthlyTasks = monthlyTasks.filter((task) => {
-      if (task.companyId?.toString() !== companyId) return false
+      if (!user) return false // Ensure user is loaded first
     
-      if (
-        searchQuery &&
-        !task.title.toLowerCase().includes(searchQuery.toLowerCase()) &&
-        !task.category?.toLowerCase().includes(searchQuery.toLowerCase())
-      ) return false
-    
-      if (priorityFilter !== "all" && task.priority !== priorityFilter) return false
-      if (statusFilter !== "all" && task.status !== statusFilter) return false
-    
-      return true
-    })    
+      return (
+        task.companyId?.toString() === companyId &&          // Match company
+        task.created_by === user.id &&                       // Match creator
+        (priorityFilter === "all" || task.priority === priorityFilter) &&
+        (statusFilter === "all" || task.status === statusFilter) &&
+        (
+          !searchQuery ||
+          task.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          task.category?.toLowerCase().includes(searchQuery.toLowerCase())
+        )
+      )
+    })
+       
   
 
   
     const handleAddTask = async () => {
+      if (!user) {
+        toast({
+          variant: "destructive",
+          title: "Error",
+          description: "User not logged in. Please refresh or log in again.",
+        })
+        return
+      }
+    
       if (newTask.taskType === "Monthly") {
         const { error } = await supabase.from("monthly_tasks").insert({
           title: newTask.title,
@@ -151,6 +179,7 @@ export default function CompanyPage() {
           description: newTask.description,
           category: newTask.category,
           tags: [newTask.category],
+          created_by: user.id, // ✅ Safe now
         })
     
         if (error) {
@@ -162,9 +191,7 @@ export default function CompanyPage() {
           return
         }
     
-        // ✅ Reload context so the new task shows up immediately
         await reloadMonthlyTasks()
-    
       } else {
         addTask({
           title: newTask.title,
@@ -176,10 +203,11 @@ export default function CompanyPage() {
           description: newTask.description,
           category: newTask.category,
           tags: [newTask.category],
+          created_by: user.id, // ✅ Safe now
         })
       }
     
-      // ✅ Reset form
+      // Reset form
       setNewTask({
         title: "",
         category: "",
@@ -200,9 +228,11 @@ export default function CompanyPage() {
     }
     
     
+    
 
   const handleUpdateTask = (updatedTask: any) => {
     updateTask(updatedTask)
+    updateMonthlyTask(updatedTask)
 
     // Show success toast
     toast({
@@ -670,7 +700,7 @@ export default function CompanyPage() {
                               className="rounded-none"
                               onChange={(e) => {
                                 const updatedTask = { ...task, title: e.target.value }
-                                updateTask(updatedTask)
+                                updateMonthlyTask(updatedTask)
                               }}
                             />
                           </div>
@@ -698,7 +728,7 @@ export default function CompanyPage() {
                               defaultValue={task.category}
                               onValueChange={(value) => {
                                 const updatedTask = { ...task, category: value, tags: [value] }
-                                updateTask(updatedTask)
+                                updateMonthlyTask(updatedTask)
                               }}
                             >
                               <SelectTrigger id={`editCategory-${task.id}`} className="rounded-none">
@@ -720,7 +750,7 @@ export default function CompanyPage() {
                                 defaultValue={task.priority}
                                 onValueChange={(value) => {
                                   const updatedTask = { ...task, priority: value as "High" | "Mid" | "Low" }
-                                  updateTask(updatedTask)
+                                  updateMonthlyTask(updatedTask)
                                 }}
                               >
                                 <SelectTrigger id={`editPriority-${task.id}`} className="rounded-none">
@@ -742,7 +772,7 @@ export default function CompanyPage() {
                                     ...task,
                                     status: value as "Completed" | "In Progress" | "Not Started",
                                   }
-                                  updateTask(updatedTask)
+                                  updateMonthlyTask(updatedTask)
                                 }}
                               >
                                 <SelectTrigger id={`editStatus-${task.id}`} className="rounded-none">
@@ -765,7 +795,7 @@ export default function CompanyPage() {
                               className="rounded-none"
                               onChange={(e) => {
                                 const updatedTask = { ...task, dueDate: e.target.value }
-                                updateTask(updatedTask)
+                                updateMonthlyTask(updatedTask)
                               }}
                             />
                           </div>
@@ -777,7 +807,7 @@ export default function CompanyPage() {
                               className="rounded-none"
                               onChange={(e) => {
                                 const updatedTask = { ...task, description: e.target.value }
-                                updateTask(updatedTask)
+                                updateMonthlyTask(updatedTask)
                               }}
                             />
                           </div>

@@ -15,23 +15,33 @@ export default function LoginPage() {
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
-
-    if (!allowedEmails.includes(email.toLowerCase())) {
-      setError("Access denied: You are not authorized to use this system.")
-      return
-    }
-
-    const { error } = await supabase.auth.signInWithPassword({
+  
+    // First try logging in with Supabase
+    const { data, error } = await supabase.auth.signInWithPassword({
       email,
       password,
     })
-
-    if (error) {
+  
+    if (error || !data?.user) {
       setError("Invalid credentials. Please try again.")
-    } else {
-      router.push("/dashboard")
+      return
     }
+  
+    // After successful auth, check if user is in `users` table
+    const { data: userRow, error: userCheckError } = await supabase
+      .from("users")
+      .select("id")
+      .eq("id", data.user.id)
+      .single()
+  
+    if (userCheckError || !userRow) {
+      setError("Access denied: You are not authorized to use this system.")
+      return
+    }
+  
+    router.push("/dashboard")
   }
+  
 
   return (
     <div className="login-page">

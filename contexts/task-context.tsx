@@ -4,6 +4,7 @@ import React, { createContext, useContext, useEffect, useState } from "react"
 import { supabase } from "@/lib/supabaseClient"
 
 export interface Task {
+  created_by: string
   id: string
   title: string
   companyId: string
@@ -32,11 +33,18 @@ export function TaskProvider({ children }: { children: React.ReactNode }) {
   const [deletedTasks, setDeletedTasks] = useState<Task[]>([])
 
   const loadTasks = async () => {
+    const {
+      data: { user },
+    } = await supabase.auth.getUser()
+  
+    if (!user) return
+  
     const { data, error } = await supabase
       .from("tasks")
       .select("*, companies(name)")
+      .eq("created_by", user.id) // ✅ filter only tasks created by logged-in user
       .order("due_date")
-
+  
     if (!error && data) {
       const active = data.filter((task) => task.status !== "Deleted")
       const deleted = data.filter((task) => task.status === "Deleted")
@@ -44,6 +52,7 @@ export function TaskProvider({ children }: { children: React.ReactNode }) {
       setDeletedTasks(deleted.map(mapTask))
     }
   }
+  
 
   useEffect(() => {
     loadTasks()
@@ -60,6 +69,7 @@ export function TaskProvider({ children }: { children: React.ReactNode }) {
     description: raw.description,
     category: raw.category,
     tags: raw.tags || [],
+    created_by: raw.created_by,
   })
 
   const addTask = async (task: Omit<Task, "id">) => {

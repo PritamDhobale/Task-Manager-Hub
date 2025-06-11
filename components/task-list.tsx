@@ -5,22 +5,42 @@ import { Badge } from "@/components/ui/badge"
 import { getPriorityBadgeStyle, getStatusBadgeStyle } from "@/utils/badge-styles"
 import { getCategoryStyle } from "@/utils/category-styles"
 import { useTasks } from "@/contexts/task-context"
+import { supabase } from "@/lib/supabaseClient"
+import { useEffect } from "react"
+import { useState } from "react"
+
 
 interface TaskListProps {
   className?: string
 }
 
 export default function TaskList({ className }: TaskListProps) {
+
+  const [userId, setUserId] = useState<string | null>(null)
+
+useEffect(() => {
+  const fetchUser = async () => {
+    const { data: { user } } = await supabase.auth.getUser()
+    setUserId(user?.id ?? null)
+  }
+
+  fetchUser()
+}, [])
+
   const { tasks } = useTasks()
+
+  
 
   // Filter tasks to show only active ones (not completed or deleted)
   const activeTasks = tasks
-    .filter((task) => task.status !== "Completed" && task.status !== "Deleted")
-    .sort((a, b) => {
-      // Sort by date (newest first)
-      return new Date(b.dueDate).getTime() - new Date(a.dueDate).getTime()
-    })
-    .slice(0, 5) // Show only the 5 most recent tasks
+  .filter((task) =>
+    task.status !== "Completed" &&
+    task.status !== "Deleted" &&
+    task.created_by === userId // ✅ Filter by current user
+  )
+  .sort((a, b) => new Date(b.dueDate).getTime() - new Date(a.dueDate).getTime())
+  .slice(0, 5)
+
 
   return (
     <Card className={`shadow-sm rounded-xl flex flex-col h-full ${className || ""}`}>

@@ -26,6 +26,19 @@ function getDaySuffix(day: number): string {
 
 export default function TaskListPage() {
   const { tasks, deletedTasks, restoreTask } = useTasks()
+
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null)
+
+useEffect(() => {
+  const getUser = async () => {
+    const {
+      data: { user },
+    } = await supabase.auth.getUser()
+    setCurrentUserId(user?.id || null)
+  }
+  getUser()
+}, [])
+
   const [viewMode, setViewMode] = useState<"active" | "completed" | "deleted">("active")
   const [monthlyViewMode, setMonthlyViewMode] = useState<"active" | "completed" | "deleted">("active")
   const [monthlyTasks, setMonthlyTasks] = useState<any[]>([])
@@ -57,28 +70,30 @@ export default function TaskListPage() {
 
   // Filter tasks based on view mode, search query, and filters
   const filteredTasks = tasks.filter((task) => {
+    // Only show tasks created by the logged-in user
+    if (task.created_by !== currentUserId) return false
+  
     // Filter by view mode
     if (viewMode === "active" && (task.status === "Completed" || task.status === "Deleted")) return false
     if (viewMode === "completed" && task.status !== "Completed") return false
     if (viewMode === "deleted") return false // We'll use deletedTasks for this view
-
+  
     // Filter by search query
     if (
       searchQuery &&
       !task.title.toLowerCase().includes(searchQuery.toLowerCase()) &&
       !task.category?.toLowerCase().includes(searchQuery.toLowerCase())
-    ) {
-      return false
-    }
-
+    ) return false
+  
     // Filter by priority
     if (priorityFilter !== "all" && task.priority !== priorityFilter) return false
-
+  
     // Filter by status
     if (statusFilter !== "all" && task.status !== statusFilter) return false
-
+  
     return true
   })
+  
 
   // Filter deleted tasks based on search query and filters
   const filteredDeletedTasks = deletedTasks.filter((task) => {
@@ -99,28 +114,30 @@ export default function TaskListPage() {
 
   // Filter monthly tasks based on view mode, search query, and filters
   const filteredMonthlyTasks = monthlyTasks.filter((task) => {
+    // Only show tasks created by the logged-in user
+    if (task.created_by !== currentUserId) return false
+  
     // Filter by view mode
     if (monthlyViewMode === "active" && (task.status === "Completed" || task.status === "Deleted")) return false
     if (monthlyViewMode === "completed" && task.status !== "Completed") return false
     if (monthlyViewMode === "deleted" && task.status !== "Deleted") return false
-
+  
     // Filter by search query
     if (
       searchQuery &&
       !task.title.toLowerCase().includes(searchQuery.toLowerCase()) &&
       !task.category?.toLowerCase().includes(searchQuery.toLowerCase())
-    ) {
-      return false
-    }
-
+    ) return false
+  
     // Filter by priority
     if (priorityFilter !== "all" && task.priority !== priorityFilter) return false
-
+  
     // Filter by status
     if (statusFilter !== "all" && task.status !== statusFilter) return false
-
+  
     return true
   })
+  
 
   return (
     <div className="space-y-6">

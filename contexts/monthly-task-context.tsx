@@ -14,6 +14,7 @@ export interface MonthlyTask {
   description?: string
   category?: string
   tags?: string[]
+  created_by: string
 }
 
 interface MonthlyTaskContextType {
@@ -30,11 +31,18 @@ export function MonthlyTaskProvider({ children }: { children: React.ReactNode })
   const [monthlyTasks, setMonthlyTasks] = useState<MonthlyTask[]>([])
 
   const loadMonthlyTasks = async () => {
+    const {
+      data: { user },
+    } = await supabase.auth.getUser()
+  
+    if (!user) return
+  
     const { data, error } = await supabase
       .from("monthly_tasks")
-      .select("*, companies(name)")
+      .select("*, companies(name)") // keep the join
+      .eq("created_by", user.id)    // filter by current user
       .order("due_date")
-
+  
     if (!error && data) {
       const mapped = data.map((t) => ({
         id: t.id,
@@ -47,10 +55,12 @@ export function MonthlyTaskProvider({ children }: { children: React.ReactNode })
         description: t.description,
         category: t.category,
         tags: t.tags || [],
+        created_by: t.created_by,
       }))
       setMonthlyTasks(mapped)
     }
   }
+  
 
   useEffect(() => {
     loadMonthlyTasks()

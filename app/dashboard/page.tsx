@@ -34,6 +34,7 @@ export default function DashboardPage() {
     taskType: "One-time", // default
     dueDate: "",
     notes: "",
+    created_by: "",
   })
 
   // Reset form fields
@@ -48,6 +49,7 @@ export default function DashboardPage() {
       taskType: "One-time", // default
       dueDate: "",
       notes: "",
+      created_by: "",
     })
   }
 
@@ -131,6 +133,21 @@ function calculateProgress(tasksForCompany: Task[]): number {
     }
   
     try {
+      // ✅ Get currently logged-in user
+      const {
+        data: { user },
+        error: userError,
+      } = await supabase.auth.getUser()
+  
+      if (userError || !user) {
+        toast({
+          title: "Error",
+          description: "User not found",
+          variant: "destructive",
+        })
+        return
+      }
+  
       if (newTask.taskType === "Monthly") {
         // 🔁 Monthly Task → Insert into Supabase monthly_tasks table
         const { error } = await supabase.from("monthly_tasks").insert([
@@ -142,6 +159,7 @@ function calculateProgress(tasksForCompany: Task[]): number {
             status: newTask.status,
             due_date: newTask.dueDate,
             description: newTask.notes,
+            created_by: user.id,
           },
         ])
   
@@ -166,6 +184,7 @@ function calculateProgress(tasksForCompany: Task[]): number {
           description: newTask.notes,
           category: newTask.category,
           tags: [newTask.category],
+          created_by: user.id,
         })
   
         toast({
@@ -184,7 +203,8 @@ function calculateProgress(tasksForCompany: Task[]): number {
         variant: "destructive",
       })
     }
-  }  
+  }
+  
   
 
   // Handle company selection
