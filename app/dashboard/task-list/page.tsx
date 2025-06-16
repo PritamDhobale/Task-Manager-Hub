@@ -39,8 +39,8 @@ useEffect(() => {
   getUser()
 }, [])
 
-  const [viewMode, setViewMode] = useState<"active" | "completed" | "deleted">("active")
-  const [monthlyViewMode, setMonthlyViewMode] = useState<"active" | "completed" | "deleted">("active")
+  const [viewMode, setViewMode] = useState<"not_started" | "in_progress" | "completed" | "deleted">("not_started")
+  const [monthlyViewMode, setMonthlyViewMode] = useState<"not_started" | "in_progress" | "completed" | "deleted">("not_started")
   const [monthlyTasks, setMonthlyTasks] = useState<any[]>([])
 
   useEffect(() => {
@@ -74,9 +74,11 @@ useEffect(() => {
     if (task.created_by !== currentUserId) return false
   
     // Filter by view mode
-    if (viewMode === "active" && (task.status === "Completed" || task.status === "Deleted")) return false
+    if (viewMode === "not_started" && task.status !== "Not Started") return false
+    if (viewMode === "in_progress" && task.status !== "In Progress") return false
     if (viewMode === "completed" && task.status !== "Completed") return false
-    if (viewMode === "deleted") return false // We'll use deletedTasks for this view
+    if (viewMode === "deleted") return false
+   
   
     // Filter by search query
     if (
@@ -118,7 +120,10 @@ useEffect(() => {
     if (task.created_by !== currentUserId) return false
   
     // Filter by view mode
-    if (monthlyViewMode === "active" && (task.status === "Completed" || task.status === "Deleted")) return false
+    if (monthlyViewMode === "not_started" && task.status !== "Not Started") return false
+    if (monthlyViewMode === "in_progress" && task.status !== "In Progress") return false
+    if (monthlyViewMode === "completed" && task.status !== "Completed") return false
+    if (monthlyViewMode === "deleted" && task.status !== "Deleted") return false
     if (monthlyViewMode === "completed" && task.status !== "Completed") return false
     if (monthlyViewMode === "deleted" && task.status !== "Deleted") return false
   
@@ -223,11 +228,18 @@ useEffect(() => {
 
           <div className="flex flex-wrap gap-4 mt-6">
             <Button
-              variant={viewMode === "active" ? "default" : "outline"}
-              className={viewMode === "active" ? "bg-[#8BC53D] hover:bg-[#476E2C]" : ""}
-              onClick={() => setViewMode("active")}
+              variant={viewMode === "not_started" ? "default" : "outline"}
+              className={viewMode === "not_started" ? "bg-[#8BC53D] hover:bg-[#476E2C]" : ""}
+              onClick={() => setViewMode("not_started")}
             >
-              Active Tasks
+              Not Started Tasks
+            </Button>
+            <Button
+              variant={viewMode === "in_progress" ? "default" : "outline"}
+              className={viewMode === "in_progress" ? "bg-[#8BC53D] hover:bg-[#476E2C]" : ""}
+              onClick={() => setViewMode("in_progress")}
+            >
+              In Progress Tasks
             </Button>
             <Button
               variant={viewMode === "completed" ? "default" : "outline"}
@@ -293,11 +305,18 @@ useEffect(() => {
 
           <div className="flex flex-wrap gap-4 mt-6">
             <Button
-              variant={monthlyViewMode === "active" ? "default" : "outline"}
-              className={monthlyViewMode === "active" ? "bg-[#8BC53D] hover:bg-[#476E2C]" : ""}
-              onClick={() => setMonthlyViewMode("active")}
+              variant={monthlyViewMode === "not_started" ? "default" : "outline"}
+              className={monthlyViewMode === "not_started" ? "bg-[#8BC53D] hover:bg-[#476E2C]" : ""}
+              onClick={() => setMonthlyViewMode("not_started")}
             >
-              Active Tasks
+              Not Started Tasks
+            </Button>
+            <Button
+              variant={monthlyViewMode === "in_progress" ? "default" : "outline"}
+              className={monthlyViewMode === "in_progress" ? "bg-[#8BC53D] hover:bg-[#476E2C]" : ""}
+              onClick={() => setMonthlyViewMode("in_progress")}
+            >
+              In Progress Tasks
             </Button>
             <Button
               variant={monthlyViewMode === "completed" ? "default" : "outline"}

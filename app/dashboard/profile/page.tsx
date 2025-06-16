@@ -10,11 +10,25 @@ import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { useProfile } from "@/contexts/profile-context"
 import { useToast } from "@/hooks/use-toast"
+import { supabase } from "@/lib/supabaseClient"
+
 
 export default function ProfilePage() {
   const { profile, updateProfile } = useProfile()
   const { toast } = useToast()
   const fileInputRef = useRef<HTMLInputElement>(null)
+
+  const [passwordData, setPasswordData] = useState({
+  oldPassword: "",
+  newPassword: "",
+  confirmNewPassword: "",
+})
+
+const handlePasswordChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const { name, value } = e.target
+  setPasswordData((prev) => ({ ...prev, [name]: value }))
+}
+
 
   const [formData, setFormData] = useState({
     name: profile.name,
@@ -39,6 +53,40 @@ export default function ProfilePage() {
       reader.readAsDataURL(file)
     }
   }
+
+  const handlePasswordUpdate = async () => {
+  if (passwordData.newPassword !== passwordData.confirmNewPassword) {
+    toast({ variant: "destructive", title: "Error", description: "New passwords do not match." })
+    return
+  }
+
+  // Re-authenticate with old password
+  const {
+    data: { session },
+    error: signInError,
+  } = await supabase.auth.signInWithPassword({
+    email: profile.email,
+    password: passwordData.oldPassword,
+  })
+
+  if (signInError || !session) {
+    toast({ variant: "destructive", title: "Error", description: "Old password is incorrect." })
+    return
+  }
+
+  // Update to new password
+  const { error: updateError } = await supabase.auth.updateUser({
+    password: passwordData.newPassword,
+  })
+
+  if (updateError) {
+    toast({ variant: "destructive", title: "Error", description: updateError.message })
+  } else {
+    toast({ variant: "success", title: "Password Updated", description: "Password changed successfully." })
+    setPasswordData({ oldPassword: "", newPassword: "", confirmNewPassword: "" })
+  }
+}
+
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
@@ -115,6 +163,51 @@ export default function ProfilePage() {
                 Save Changes
               </Button>
             </div>
+            <CardHeader className="pt-8">
+  <CardTitle>Change Password</CardTitle>
+  <CardDescription>Update your login password securely.</CardDescription>
+</CardHeader>
+<CardContent className="space-y-4">
+  <div className="grid gap-2">
+    <Label htmlFor="oldPassword">Old Password</Label>
+    <Input
+      id="oldPassword"
+      name="oldPassword"
+      type="password"
+      value={passwordData.oldPassword}
+      onChange={handlePasswordChange}
+    />
+  </div>
+
+  <div className="grid gap-2">
+    <Label htmlFor="newPassword">New Password</Label>
+    <Input
+      id="newPassword"
+      name="newPassword"
+      type="password"
+      value={passwordData.newPassword}
+      onChange={handlePasswordChange}
+    />
+  </div>
+
+  <div className="grid gap-2">
+    <Label htmlFor="confirmNewPassword">Confirm New Password</Label>
+    <Input
+      id="confirmNewPassword"
+      name="confirmNewPassword"
+      type="password"
+      value={passwordData.confirmNewPassword}
+      onChange={handlePasswordChange}
+    />
+  </div>
+
+  <div className="flex justify-end">
+    <Button type="button" onClick={handlePasswordUpdate} className="bg-[#8BC53D] hover:bg-[#476E2C] rounded-xl">
+      Change Password
+    </Button>
+  </div>
+</CardContent>
+
           </form>
         </CardContent>
       </Card>

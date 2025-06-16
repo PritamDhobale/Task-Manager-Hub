@@ -38,7 +38,12 @@ export default function LoginPage() {
       setError("Access denied: You are not authorized to use this system.")
       return
     }
-  
+    // Clear old cached profile
+    localStorage.removeItem("taskhub-profile")
+
+    // Force profile to refetch in context on dashboard load
+    sessionStorage.setItem("reload-profile", "true")
+
     router.push("/dashboard")
   }
   

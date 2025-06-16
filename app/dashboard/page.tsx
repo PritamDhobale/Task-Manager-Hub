@@ -18,6 +18,7 @@ import { supabase } from "@/lib/supabaseClient"
 import { Task, useTasks } from "@/contexts/task-context"
 import { useToast } from "@/hooks/use-toast"
 import CompanyCard from "@/components/company-card"
+import Link from "next/link"
 
 export default function DashboardPage() {
   const { tasks, addTask } = useTasks()
@@ -383,16 +384,17 @@ function calculateProgress(tasksForCompany: Task[]): number {
         <h2 className="text-xl font-bold mb-4">Companies</h2>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           {companiesWithMetadata.map((company, index) => (
-            <CompanyCard
-              key={company.id}
-              name={company.name}
-              taskCount={company.taskCount}
-              progress={company.progress}
-              status={company.status}
-              index={index}
-              logo={company.logo}
-              color={company.color}
-            />
+            <Link href={`/dashboard/company/${company.id}`} key={company.id}>
+              <CompanyCard
+                name={company.name}
+                taskCount={company.taskCount}
+                progress={company.progress}
+                status={company.status}
+                index={index}
+                logo={company.logo}
+                color={company.color}
+              />
+            </Link>
           ))}
         </div>
       </div>

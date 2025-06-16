@@ -94,7 +94,7 @@ export default function Sidebar() {
         </div>
 
         {/* Main nav */}
-        <div className="flex-1 overflow-y-auto p-4">
+        <div className="flex-1 p-4 overflow-y-auto lg:overflow-y-visible">
           <nav className="space-y-6">
             <div>
               <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Dashboard</h2>

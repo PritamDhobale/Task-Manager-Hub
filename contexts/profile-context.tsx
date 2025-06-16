@@ -29,30 +29,52 @@ export function ProfileProvider({ children }: { children: React.ReactNode }) {
   const [profile, setProfile] = useState<ProfileData>(defaultProfile)
 
   useEffect(() => {
-    const fetchProfile = async () => {
-      const { data: { user } } = await supabase.auth.getUser()
-      if (user) {
-        const { data, error } = await supabase
-          .from("users")
-          .select("full_name, role, email")
-          .eq("id", user.id)
-          .single()
-  
-        if (!error && data) {
-          const newProfile: ProfileData = {
-            name: data.full_name,
-            jobTitle: data.role,
-            email: data.email,
-            avatar: "https://i.postimg.cc/qR7Cb0s8/Screenshot-2025-05-07-132514.png", // or dynamic if stored
-          }
-          setProfile(newProfile)
-          localStorage.setItem("taskhub-profile", JSON.stringify(newProfile))
+  const fetchProfile = async () => {
+    const {
+      data: { user },
+    } = await supabase.auth.getUser()
+
+    if (user) {
+      const { data, error } = await supabase
+        .from("users")
+        .select("full_name, role, email")
+        .eq("id", user.id)
+        .single()
+
+      if (!error && data) {
+        const newProfile: ProfileData = {
+          name: data.full_name,
+          jobTitle: data.role,
+          email: data.email,
+          avatar: "https://i.postimg.cc/qR7Cb0s8/Screenshot-2025-05-07-132514.png",
         }
+
+        setProfile(newProfile)
+        localStorage.setItem("taskhub-profile", JSON.stringify(newProfile))
       }
     }
-  
-    fetchProfile()
-  }, [])
+  }
+
+  // ✅ Listen for Supabase Auth session changes
+  const { data: listener } = supabase.auth.onAuthStateChange((event) => {
+    if (event === "SIGNED_IN" || event === "USER_UPDATED") {
+      fetchProfile()
+    }
+    if (event === "SIGNED_OUT") {
+      setProfile(defaultProfile)
+      localStorage.removeItem("taskhub-profile")
+    }
+  })
+
+  // Initial load
+  fetchProfile()
+
+  return () => {
+    listener?.subscription.unsubscribe()
+  }
+}, [])
+
+
   
 
   const updateProfile = (data: Partial<ProfileData>) => {
