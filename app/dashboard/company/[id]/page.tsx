@@ -22,6 +22,8 @@ import { useEffect } from "react"
 import { supabase } from "@/lib/supabaseClient"
 import { useMonthlyTasks } from "@/contexts/monthly-task-context"
 import { User } from "@supabase/supabase-js"
+import { useProfile } from "@/contexts/profile-context"
+
 
 
 type MonthlyTask = {

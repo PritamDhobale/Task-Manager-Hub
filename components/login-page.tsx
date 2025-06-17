@@ -44,7 +44,8 @@ export default function LoginPage() {
     // Force profile to refetch in context on dashboard load
     sessionStorage.setItem("reload-profile", "true")
 
-    router.push("/dashboard")
+    await router.push("/dashboard")
+    window.location.href = "/dashboard" // hard reload on final page
   }
   
 
