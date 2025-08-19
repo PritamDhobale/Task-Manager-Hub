@@ -159,6 +159,40 @@ body, html {
   }
 }
 
+.password-field {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.password-field input {
+  width: 100%;
+}
+
+.password-visibility-btn {
+  position: absolute;
+  right: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 4px;
+  line-height: 0;
+  color: #999; /* subtle like placeholder */
+}
+
+.password-visibility-btn:hover {
+  color: #666;
+}
+
+.password-visibility-btn:focus {
+  outline: 2px solid #4c9ffe;
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+
+
   
 
 

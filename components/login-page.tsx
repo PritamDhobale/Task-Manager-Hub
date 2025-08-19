@@ -3,6 +3,7 @@
 import { useState } from "react"
 import { useRouter } from "next/navigation"
 import { supabase } from "@/lib/supabaseClient"
+import { Eye, EyeOff } from "lucide-react"
 import "./login.css"
 
 const allowedEmails = ["admin@hubone.com", "vchittam@sagehealthy.com"] // ✅ Add your allowed users here
@@ -12,6 +13,8 @@ export default function LoginPage() {
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [error, setError] = useState("")
+  const [showPassword, setShowPassword] = useState(false)
+
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -72,14 +75,36 @@ export default function LoginPage() {
             required
           />
 
-          <label>Password</label>
+          {/* <label>Password</label>
           <input
             type="password"
             placeholder="********"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             required
-          />
+          /> */}
+          <label>Password</label>
+          <div className="password-field">
+            <input
+              type={showPassword ? "text" : "password"}
+              placeholder="********"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required
+              aria-label="Password"
+              /* gives room for the icon button */
+              style={{ paddingRight: "2.5rem" }}
+            />
+            <button
+              type="button"
+              className="password-visibility-btn"
+              onClick={() => setShowPassword((p) => !p)}
+              aria-label={showPassword ? "Hide password" : "Show password"}
+              aria-pressed={showPassword}
+            >
+              {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+            </button>
+          </div>
 
           {error && <p style={{ color: "red", fontSize: "12px", marginTop: "4px" }}>{error}</p>}
 

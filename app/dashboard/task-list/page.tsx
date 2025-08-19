@@ -11,6 +11,7 @@ import { getPriorityBadgeStyle, getStatusBadgeStyle } from "@/utils/badge-styles
 import { getCategoryStyle } from "@/utils/category-styles"
 import { Undo2 } from "lucide-react"
 import { useTasks } from "@/contexts/task-context"
+import { WeeklyTaskProvider, useWeeklyTasks } from "@/contexts/weekly-task-context"
 import TaskSearchFilter from "@/components/task-search-filter"
 
 function getDaySuffix(day: number): string {
@@ -24,7 +25,8 @@ function getDaySuffix(day: number): string {
 }
 
 
-export default function TaskListPage() {
+// export default function TaskListPage() {
+function TaskListContent() {
   const { tasks, deletedTasks, restoreTask } = useTasks()
 
   const [currentUserId, setCurrentUserId] = useState<string | null>(null)
@@ -39,9 +41,11 @@ useEffect(() => {
   getUser()
 }, [])
 
-  const [viewMode, setViewMode] = useState<"not_started" | "in_progress" | "completed" | "deleted">("not_started")
-  const [monthlyViewMode, setMonthlyViewMode] = useState<"not_started" | "in_progress" | "completed" | "deleted">("not_started")
+  const [viewMode, setViewMode] = useState<"all" | "not_started" | "in_progress" | "completed" | "deleted">("all")
+  const [weeklyViewMode, setWeeklyViewMode] = useState<"all" | "not_started" | "in_progress" | "completed" | "deleted">("all")
+  const [monthlyViewMode, setMonthlyViewMode] = useState<"all" | "not_started" | "in_progress" | "completed" | "deleted">("all")
   const [monthlyTasks, setMonthlyTasks] = useState<any[]>([])
+  const { weeklyTasks } = useWeeklyTasks()
 
   useEffect(() => {
     const fetchMonthlyTasks = async () => {
@@ -74,11 +78,12 @@ useEffect(() => {
     if (task.created_by !== currentUserId) return false
   
     // Filter by view mode
-    if (viewMode === "not_started" && task.status !== "Not Started") return false
-    if (viewMode === "in_progress" && task.status !== "In Progress") return false
-    if (viewMode === "completed" && task.status !== "Completed") return false
-    if (viewMode === "deleted") return false
-   
+    if (viewMode !== "all") {
+      if (viewMode === "not_started" && task.status !== "Not Started") return false
+      if (viewMode === "in_progress" && task.status !== "In Progress") return false
+      if (viewMode === "completed" && task.status !== "Completed") return false
+      if (viewMode === "deleted") return false
+    }
   
     // Filter by search query
     if (
@@ -120,12 +125,24 @@ useEffect(() => {
     if (task.created_by !== currentUserId) return false
   
     // Filter by view mode
-    if (monthlyViewMode === "not_started" && task.status !== "Not Started") return false
-    if (monthlyViewMode === "in_progress" && task.status !== "In Progress") return false
-    if (monthlyViewMode === "completed" && task.status !== "Completed") return false
-    if (monthlyViewMode === "deleted" && task.status !== "Deleted") return false
-    if (monthlyViewMode === "completed" && task.status !== "Completed") return false
-    if (monthlyViewMode === "deleted" && task.status !== "Deleted") return false
+    // if (monthlyViewMode === "not_started" && task.status !== "Not Started") return false
+    // if (monthlyViewMode === "in_progress" && task.status !== "In Progress") return false
+    // if (monthlyViewMode === "completed" && task.status !== "Completed") return false
+    // if (monthlyViewMode === "deleted" && task.status !== "Deleted") return false
+    // if (monthlyViewMode === "completed" && task.status !== "Completed") return false
+    // if (monthlyViewMode === "deleted" && task.status !== "Deleted") return false
+
+    // Monthly view-mode filter — REPLACE your existing lines with this:
+    if (monthlyViewMode !== "all") {
+      if (monthlyViewMode === "not_started" && task.status !== "Not Started") return false
+      if (monthlyViewMode === "in_progress" && task.status !== "In Progress") return false
+      if (monthlyViewMode === "completed" && task.status !== "Completed") return false
+      if (monthlyViewMode === "deleted" && task.status !== "Deleted") return false
+    } else {
+      // For "All" tab, show all non-deleted monthly tasks
+      if (task.status === "Deleted") return false
+    }
+
   
     // Filter by search query
     if (
@@ -142,6 +159,39 @@ useEffect(() => {
   
     return true
   })
+
+  // Filter weekly tasks based on view mode, search query, and filters
+const filteredWeeklyTasks = weeklyTasks.filter((task) => {
+  // Only show tasks created by the logged-in user
+  if (task.created_by !== currentUserId) return false
+
+  // View-mode filter
+  if (weeklyViewMode !== "all") {
+    if (weeklyViewMode === "not_started" && task.status !== "Not Started") return false
+    if (weeklyViewMode === "in_progress" && task.status !== "In Progress") return false
+    if (weeklyViewMode === "completed" && task.status !== "Completed") return false
+    if (weeklyViewMode === "deleted" && task.status !== "Deleted") return false
+  } else {
+    // "All Tasks" = everything except Deleted
+    if (task.status === "Deleted") return false
+  }
+
+  // Search
+  if (
+    searchQuery &&
+    !task.title.toLowerCase().includes(searchQuery.toLowerCase()) &&
+    !task.category?.toLowerCase().includes(searchQuery.toLowerCase())
+  ) return false
+
+  // Priority
+  if (priorityFilter !== "all" && task.priority !== priorityFilter) return false
+
+  // Status dropdown (global filter)
+  if (statusFilter !== "all" && task.status !== statusFilter) return false
+
+  return true
+})
+
   
 
   return (
@@ -228,6 +278,13 @@ useEffect(() => {
 
           <div className="flex flex-wrap gap-4 mt-6">
             <Button
+              variant={viewMode === "all" ? "default" : "outline"}
+              className={viewMode === "all" ? "bg-[#8BC53D] hover:bg-[#476E2C]" : ""}
+              onClick={() => setViewMode("all")}
+            >
+              All Tasks
+            </Button>
+            <Button
               variant={viewMode === "not_started" ? "default" : "outline"}
               className={viewMode === "not_started" ? "bg-[#8BC53D] hover:bg-[#476E2C]" : ""}
               onClick={() => setViewMode("not_started")}
@@ -258,6 +315,86 @@ useEffect(() => {
           </div>
         </CardContent>
       </Card>
+
+      {/* Weekly Occurring Tasks Card */}
+      <Card className="shadow-sm">
+        <CardHeader>
+          <CardTitle className="text-lg">Weekly Occurring Tasks</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="w-[220px]">Task</TableHead>
+                  <TableHead className="w-[200px]">Company Name</TableHead>
+                  <TableHead className="w-[150px]">Category</TableHead>
+                  <TableHead className="w-[120px]">Priority</TableHead>
+                  <TableHead className="w-[140px]">Status</TableHead>
+                  <TableHead className="w-[160px]">Due Date</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {filteredWeeklyTasks.map((task) => (
+                  <TableRow key={task.id}>
+                    <TableCell className="font-medium">{task.title}</TableCell>
+                    <TableCell>{task.company}</TableCell>
+                    <TableCell>
+                      {task.category && <Badge className={getCategoryStyle(task.category)}>{task.category}</Badge>}
+                    </TableCell>
+                    <TableCell>
+                      <Badge className={getPriorityBadgeStyle(task.priority)}>{task.priority}</Badge>
+                    </TableCell>
+                    <TableCell>
+                      <Badge className={getStatusBadgeStyle(task.status)}>{task.status}</Badge>
+                    </TableCell>
+                    <TableCell>{task.dueDate}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+
+          <div className="flex flex-wrap gap-4 mt-6">
+            <Button
+              variant={weeklyViewMode === "all" ? "default" : "outline"}
+              className={weeklyViewMode === "all" ? "bg-[#8BC53D] hover:bg-[#476E2C]" : ""}
+              onClick={() => setWeeklyViewMode("all")}
+            >
+              All Tasks
+            </Button>
+            <Button
+              variant={weeklyViewMode === "not_started" ? "default" : "outline"}
+              className={weeklyViewMode === "not_started" ? "bg-[#8BC53D] hover:bg-[#476E2C]" : ""}
+              onClick={() => setWeeklyViewMode("not_started")}
+            >
+              Not Started Tasks
+            </Button>
+            <Button
+              variant={weeklyViewMode === "in_progress" ? "default" : "outline"}
+              className={weeklyViewMode === "in_progress" ? "bg-[#8BC53D] hover:bg-[#476E2C]" : ""}
+              onClick={() => setWeeklyViewMode("in_progress")}
+            >
+              In Progress Tasks
+            </Button>
+            <Button
+              variant={weeklyViewMode === "completed" ? "default" : "outline"}
+              className={weeklyViewMode === "completed" ? "bg-[#8BC53D] hover:bg-[#476E2C]" : ""}
+              onClick={() => setWeeklyViewMode("completed")}
+            >
+              View Completed Tasks
+            </Button>
+            <Button
+              variant={weeklyViewMode === "deleted" ? "default" : "outline"}
+              className={weeklyViewMode === "deleted" ? "bg-[#8BC53D] hover:bg-[#476E2C]" : ""}
+              onClick={() => setWeeklyViewMode("deleted")}
+            >
+              View Deleted Tasks
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+
 
       {/* Monthly Occurring Tasks Card */}
       <Card className="shadow-sm">
@@ -305,6 +442,13 @@ useEffect(() => {
 
           <div className="flex flex-wrap gap-4 mt-6">
             <Button
+              variant={monthlyViewMode === "all" ? "default" : "outline"}
+              className={monthlyViewMode === "all" ? "bg-[#8BC53D] hover:bg-[#476E2C]" : ""}
+              onClick={() => setMonthlyViewMode("all")}
+            >
+              All Tasks
+            </Button>
+            <Button
               variant={monthlyViewMode === "not_started" ? "default" : "outline"}
               className={monthlyViewMode === "not_started" ? "bg-[#8BC53D] hover:bg-[#476E2C]" : ""}
               onClick={() => setMonthlyViewMode("not_started")}
@@ -338,3 +482,11 @@ useEffect(() => {
     </div>
   )
 }
+export default function TaskListPage() {
+  return (
+    <WeeklyTaskProvider>
+      <TaskListContent />
+    </WeeklyTaskProvider>
+  )
+}
+

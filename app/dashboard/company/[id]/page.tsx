@@ -21,6 +21,7 @@ import { useToast } from "@/hooks/use-toast"
 import { useEffect } from "react"
 import { supabase } from "@/lib/supabaseClient"
 import { useMonthlyTasks } from "@/contexts/monthly-task-context"
+import { WeeklyTaskProvider, useWeeklyTasks } from "@/contexts/weekly-task-context"
 import { User } from "@supabase/supabase-js"
 import { useProfile } from "@/contexts/profile-context"
 
@@ -51,7 +52,8 @@ function getDaySuffix(day: number): string {
 }
 
 
-export default function CompanyPage() {
+// export default function CompanyPage() {
+function CompanyPageContent() {
   const [user, setUser] = useState<User | null>(null)
 
 useEffect(() => {
@@ -72,6 +74,7 @@ useEffect(() => {
   // Task context
   const { tasks, addTask, updateTask, deleteTask } = useTasks()
   const { monthlyTasks, reloadMonthlyTasks, updateMonthlyTask } = useMonthlyTasks()
+  const { weeklyTasks, reloadWeeklyTasks, updateWeeklyTask, deleteWeeklyTask } = useWeeklyTasks()
 
   // Search and filter state
   const [searchQuery, setSearchQuery] = useState("")
@@ -157,9 +160,21 @@ useEffect(() => {
         )
       )
     })
-       
-  
 
+    const companyWeeklyTasks = weeklyTasks.filter((task) => {
+      if (!user) return false
+      return (
+        task.companyId?.toString() === companyId &&
+        task.created_by === user.id &&
+        (priorityFilter === "all" || task.priority === priorityFilter) &&
+        (statusFilter === "all" || task.status === statusFilter) &&
+        (
+          !searchQuery ||
+          task.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          task.category?.toLowerCase().includes(searchQuery.toLowerCase())
+        )
+      )
+    })
   
     const handleAddTask = async () => {
       if (!user) {
@@ -194,6 +209,23 @@ useEffect(() => {
         }
     
         await reloadMonthlyTasks()
+      } else if (newTask.taskType === "Weekly") {
+        const { error } = await supabase.from("weekly_tasks").insert({
+          title: newTask.title,
+          company_id: companyId,
+          due_date: newTask.dueDate,      // e.g., "Friday" or a date string—same as your schema
+          priority: newTask.priority,
+          status: newTask.status,
+          description: newTask.description,
+          category: newTask.category,
+          tags: [newTask.category],
+          created_by: user.id,
+        })
+        if (error) {
+          toast({ variant: "destructive", title: "Error", description: "Failed to create weekly task" })
+          return
+        }
+        await reloadWeeklyTasks()
       } else {
         addTask({
           title: newTask.title,
@@ -444,6 +476,7 @@ useEffect(() => {
                     <SelectContent>
                       <SelectItem value="One-time">One-time</SelectItem>
                       <SelectItem value="Monthly">Monthly</SelectItem>
+                      <SelectItem value="Weekly">Weekly</SelectItem>
                     </SelectContent>
                   </Select>
                   </div>
@@ -667,6 +700,175 @@ useEffect(() => {
         </CardContent>
       </Card>
 
+      {/* Weekly Occurring Tasks */}
+      <Card className="shadow-sm rounded-xl">
+        <CardHeader>
+          <CardTitle className="text-lg">Weekly Occurring Tasks</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {companyWeeklyTasks.length > 0 ? (
+              companyWeeklyTasks.map((task) => (
+                <Card key={task.id} className="shadow-sm rounded-xl">
+                  <CardContent className="p-4">
+                    <div className="flex justify-between items-start mb-2">
+                      <div>
+                        <h3 className="font-medium text-lg">{task.title}</h3>
+                        {task.category && (
+                          <Badge className={getCategoryStyle(task.category)}>{task.category}</Badge>
+                        )}
+                      </div>
+
+                      {/* Edit Weekly */}
+                      <Dialog>
+                        <DialogTrigger asChild>
+                          <Button variant="outline" size="sm" className="h-8 rounded-xl">
+                            Edit
+                          </Button>
+                        </DialogTrigger>
+                        <DialogContent className="sm:max-w-[500px]">
+                          <DialogHeader>
+                            <DialogTitle>Edit Task</DialogTitle>
+                          </DialogHeader>
+                          <div className="grid gap-4 py-4">
+                            <div className="grid gap-2">
+                              <Label htmlFor={`editWTaskName-${task.id}`}>Task Name</Label>
+                              <Input
+                                id={`editWTaskName-${task.id}`}
+                                defaultValue={task.title}
+                                className="rounded-none"
+                                onChange={(e) => updateWeeklyTask({ ...task, title: e.target.value })}
+                              />
+                            </div>
+
+                            <div className="grid gap-2">
+                              <Label htmlFor={`editWCategory-${task.id}`}>Category</Label>
+                              <Select
+                                defaultValue={task.category}
+                                onValueChange={(value) => updateWeeklyTask({ ...task, category: value, tags: [value] })}
+                              >
+                                <SelectTrigger id={`editWCategory-${task.id}`} className="rounded-none">
+                                  <SelectValue placeholder="Select category" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {CATEGORIES.map((category) => (
+                                    <SelectItem key={category} value={category}>
+                                      {category}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-4">
+                              <div className="grid gap-2">
+                                <Label htmlFor={`editWPriority-${task.id}`}>Priority</Label>
+                                <Select
+                                  defaultValue={task.priority}
+                                  onValueChange={(value) =>
+                                    updateWeeklyTask({ ...task, priority: value as "High" | "Mid" | "Low" })
+                                  }
+                                >
+                                  <SelectTrigger id={`editWPriority-${task.id}`} className="rounded-none">
+                                    <SelectValue placeholder="Select priority" />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    <SelectItem value="High">High</SelectItem>
+                                    <SelectItem value="Mid">Mid</SelectItem>
+                                    <SelectItem value="Low">Low</SelectItem>
+                                  </SelectContent>
+                                </Select>
+                              </div>
+                              <div className="grid gap-2">
+                                <Label htmlFor={`editWStatus-${task.id}`}>Status</Label>
+                                <Select
+                                  defaultValue={task.status}
+                                  onValueChange={(value) =>
+                                    updateWeeklyTask({
+                                      ...task,
+                                      status: value as "Completed" | "In Progress" | "Not Started",
+                                    })
+                                  }
+                                >
+                                  <SelectTrigger id={`editWStatus-${task.id}`} className="rounded-none">
+                                    <SelectValue placeholder="Select status" />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    <SelectItem value="Completed">Completed</SelectItem>
+                                    <SelectItem value="In Progress">In Progress</SelectItem>
+                                    <SelectItem value="Not Started">Not Started</SelectItem>
+                                  </SelectContent>
+                                </Select>
+                              </div>
+                            </div>
+
+                            <div className="grid gap-2">
+                              <Label htmlFor={`editWDue-${task.id}`}>Due</Label>
+                              <Input
+                                id={`editWDue-${task.id}`}
+                                className="rounded-none"
+                                defaultValue={task.dueDate}
+                                onChange={(e) => updateWeeklyTask({ ...task, dueDate: e.target.value })}
+                              />
+                              {/* If you prefer a weekday picker, keep due_date as free text for now */}
+                            </div>
+
+                            <div className="grid gap-2">
+                              <Label htmlFor={`editWNotes-${task.id}`}>Notes</Label>
+                              <Textarea
+                                id={`editWNotes-${task.id}`}
+                                defaultValue={task.description}
+                                className="rounded-none"
+                                onChange={(e) => updateWeeklyTask({ ...task, description: e.target.value })}
+                              />
+                            </div>
+
+                            <div className="flex justify-between mt-2">
+                              <Button
+                                type="button"
+                                variant="destructive"
+                                className="bg-red-500 hover:bg-red-600 rounded-xl"
+                                onClick={() => deleteWeeklyTask(task.id)}
+                              >
+                                <Trash2 className="h-4 w-4 mr-1" /> Delete Task
+                              </Button>
+                              <Button
+                                type="button"
+                                className="bg-[#8BC53D] hover:bg-[#476E2C] rounded-xl"
+                                onClick={() => {
+                                  document
+                                    .querySelector(`[data-state="open"]`)
+                                    ?.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" }))
+                                  toast({ variant: "success", title: "Success", description: "Task updated successfully!" })
+                                }}
+                              >
+                                Save Changes
+                              </Button>
+                            </div>
+                          </div>
+                        </DialogContent>
+                      </Dialog>
+                    </div>
+
+                    <p className="text-gray-600 mb-3">{task.description}</p>
+                    <div className="flex flex-wrap justify-between items-center">
+                      <p className="text-sm text-gray-500">Due: {task.dueDate}</p>
+                      <div className="flex gap-2">
+                        <Badge className={getPriorityBadgeStyle(task.priority)}>{task.priority}</Badge>
+                        <Badge className={getStatusBadgeStyle(task.status)}>{task.status}</Badge>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))
+            ) : (
+              <div className="text-sm text-gray-500">No weekly tasks found for this company.</div>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+
+
       {/* for Monthly Tasks */}
       <Card className="shadow-sm rounded-xl">
   <CardHeader>
@@ -871,3 +1073,11 @@ useEffect(() => {
     </div>
   )
 }
+export default function CompanyPage() {
+  return (
+    <WeeklyTaskProvider>
+      <CompanyPageContent />
+    </WeeklyTaskProvider>
+  )
+}
+

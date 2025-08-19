@@ -173,7 +173,25 @@ function calculateProgress(tasksForCompany: Task[]): number {
           description: "Monthly task added successfully",
           variant: "success",
         })
-      } else {
+            } else if (newTask.taskType === "Weekly") {
+          // NEW: insert into weekly_tasks
+          const { error } = await supabase.from("weekly_tasks").insert([
+            {
+              title: newTask.title,
+              company_id: newTask.companyId,
+              category: newTask.category,
+              priority: newTask.priority,
+              status: newTask.status,
+              due_date: newTask.dueDate,     // store the next occurrence date or any string you use
+              description: newTask.notes,
+              created_by: user.id,
+            },
+          ])
+          if (error) throw error
+
+          toast({ title: "Success", description: "Weekly task added successfully", variant: "success" })
+
+        } else {
         // ✅ One-time Task → Add to context state (tasks)
         addTask({
           title: newTask.title,
@@ -340,6 +358,7 @@ function calculateProgress(tasksForCompany: Task[]): number {
                     <SelectContent>
                       <SelectItem value="One-time">One-time</SelectItem>
                       <SelectItem value="Monthly">Monthly</SelectItem>
+                      <SelectItem value="Weekly">Weekly</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>

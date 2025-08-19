@@ -5,7 +5,7 @@
 // Common badge style classes for consistent sizing
 const BADGE_BASE_STYLE = "text-sm px-3 py-1 flex items-center justify-center font-medium rounded-md"
 
-export const CATEGORIES = ["Budget", "Meeting", "Finance", "Reporting", "Tax"] as const
+export const CATEGORIES = ["Budget", "Meeting", "Finance", "Reporting", "Tax", "Corporate"] as const
 
 export type TaskCategory = (typeof CATEGORIES)[number]
 
@@ -21,7 +21,10 @@ export const getCategoryStyle = (category: string): string => {
       return `bg-yellow-100 text-yellow-800 ${BADGE_BASE_STYLE}`
     case "Tax":
       return `bg-red-100 text-red-800 ${BADGE_BASE_STYLE}`
+    case "Corporate": // 👈 NEW
+      return `bg-indigo-100 text-indigo-800 ${BADGE_BASE_STYLE}`
     default:
       return `bg-gray-100 text-gray-800 ${BADGE_BASE_STYLE}`
   }
 }
+
