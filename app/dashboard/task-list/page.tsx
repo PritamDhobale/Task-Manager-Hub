@@ -21,10 +21,9 @@ import { Label } from "@/components/ui/label"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { useToast } from "@/hooks/use-toast"
-import { Plus, Printer, Download } from "lucide-react"
+import { Plus, Printer, Download, Trash2 } from "lucide-react"
 import { Textarea } from "@/components/ui/textarea"
 import { User } from "@supabase/supabase-js"
-
 
 function getDaySuffix(day: number): string {
   if (day >= 11 && day <= 13) return "th"
@@ -38,7 +37,7 @@ function getDaySuffix(day: number): string {
 
 // export default function TaskListPage() {
 function TaskListContent() {
-  const { tasks, deletedTasks, restoreTask, addTask } = useTasks()
+  const { tasks, deletedTasks, restoreTask, addTask, updateTask, deleteTask } = useTasks()
   const router = useRouter()
   const allTasksRef = useRef<HTMLDivElement>(null)
   const [currentUserId, setCurrentUserId] = useState<string | null>(null)
@@ -117,6 +116,47 @@ useEffect(() => {
   taskType: "One-time",
   companyId: "",       // NEW: required on All Tasks page
 })
+
+// ---- Quick edit modal state ----
+const [editOpen, setEditOpen] = useState(false)
+const [activeTask, setActiveTask] = useState<any | null>(null)
+
+// open full edit dialog for a specific task
+const openEdit = (task: any) => {
+  // normalize due date so the input always has a value (monthly uses due_date)
+  setActiveTask({
+    ...task,
+    dueDate: (task as any).dueDate ?? (task as any).due_date ?? "",
+  })
+  setEditOpen(true)
+}
+
+// save full edit changes
+const saveActiveTask = () => {
+  if (!activeTask) return
+  updateTask(activeTask)
+  toast({ variant: "success", title: "Success", description: "Task updated successfully!" })
+  setEditOpen(false)
+}
+
+// quick inline status change for a row
+const handleInlineStatusChange = (
+  taskId: string,
+  status: "Completed" | "In Progress" | "Not Started"
+) => {
+  const t = tasks.find((x) => x.id === taskId)
+  if (!t) return
+  updateTask({ ...t, status })
+  toast({ variant: "success", title: "Status updated", description: `Marked as ${status}` })
+}
+
+// when changing company in the full dialog, keep name + id in sync
+const handleEditCompanyChange = (newCompanyId: string) => {
+  if (!activeTask) return
+  const c = companies.find((cc) => cc.id === newCompanyId)
+  if (!c) return
+  setActiveTask((prev: any) => ({ ...prev, companyId: newCompanyId, company: c.name }))
+}
 
 // Formats today's date as MM-DD-YYYY (US)
 const getUSDateStamp = () =>
@@ -689,7 +729,8 @@ const handleExportDoc = () => {
               <TableBody>
                 {viewMode === "deleted"
                   ? filteredDeletedTasks.map((task) => (
-                      <TableRow key={task.id}>
+                      // <TableRow key={task.id} onDoubleClick={() => openEdit(task)} className="cursor-pointer">
+                      <TableRow key={task.id} onDoubleClick={() => openEdit(task)} className="cursor-pointer">
                         <TableCell className="font-medium">{task.title}</TableCell>
                         <TableCell>{task.company}</TableCell>
                         <TableCell>
@@ -699,7 +740,23 @@ const handleExportDoc = () => {
                           <Badge className={getPriorityBadgeStyle(task.priority)}>{task.priority}</Badge>
                         </TableCell>
                         <TableCell>
-                          <Badge className={getStatusBadgeStyle(task.status)}>{task.status}</Badge>
+                          <Select
+                            value={task.status}
+                            onValueChange={(value) =>
+                              handleInlineStatusChange(task.id, value as "Completed" | "In Progress" | "Not Started")
+                            }
+                          >
+                            <SelectTrigger
+                              className={`h-8 w-[150px] rounded-full px-3 border-0 shadow-none focus:ring-0 ${getStatusBadgeStyle(task.status)} text-white`}
+                            >
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="Completed">Completed</SelectItem>
+                              <SelectItem value="In Progress">In Progress</SelectItem>
+                              <SelectItem value="Not Started">Not Started</SelectItem>
+                            </SelectContent>
+                          </Select>
                         </TableCell>
                         <TableCell>{task.dueDate}</TableCell>
                         <TableCell>
@@ -715,7 +772,7 @@ const handleExportDoc = () => {
                       </TableRow>
                     ))
                   : filteredTasks.map((task) => (
-                      <TableRow key={task.id}>
+                      <TableRow key={task.id} onDoubleClick={() => openEdit(task)} className="cursor-pointer">
                         <TableCell className="font-medium">{task.title}</TableCell>
                         <TableCell>{task.company}</TableCell>
                         <TableCell>
@@ -725,7 +782,23 @@ const handleExportDoc = () => {
                           <Badge className={getPriorityBadgeStyle(task.priority)}>{task.priority}</Badge>
                         </TableCell>
                         <TableCell>
-                          <Badge className={getStatusBadgeStyle(task.status)}>{task.status}</Badge>
+                          <Select
+                            value={task.status}
+                            onValueChange={(value) =>
+                              handleInlineStatusChange(task.id, value as "Completed" | "In Progress" | "Not Started")
+                            }
+                          >
+                            <SelectTrigger
+                              className={`h-8 w-[150px] rounded-full px-3 border-0 shadow-none focus:ring-0 ${getStatusBadgeStyle(task.status)} text-white`}
+                            >
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="Completed">Completed</SelectItem>
+                              <SelectItem value="In Progress">In Progress</SelectItem>
+                              <SelectItem value="Not Started">Not Started</SelectItem>
+                            </SelectContent>
+                          </Select>
                         </TableCell>
                         <TableCell>{task.dueDate}</TableCell>
                       </TableRow>
@@ -733,6 +806,160 @@ const handleExportDoc = () => {
               </TableBody>
             </Table>
           </div>
+          <Dialog open={editOpen} onOpenChange={setEditOpen}>
+  <DialogContent className="sm:max-w-[500px]">
+    <DialogHeader>
+      <DialogTitle>Edit Task</DialogTitle>
+    </DialogHeader>
+
+    {activeTask && (
+      <div className="grid gap-4 py-4">
+        {/* Task Name */}
+        <div className="grid gap-2">
+          <Label htmlFor="editTaskName">Task Name</Label>
+          <Input
+            id="editTaskName"
+            className="rounded-none"
+            value={activeTask.title}
+            onChange={(e) => setActiveTask({ ...activeTask, title: e.target.value })}
+          />
+        </div>
+
+        {/* Company */}
+        <div className="grid gap-2">
+          <Label htmlFor="editCompany">Company</Label>
+          <Select
+            value={String(activeTask.companyId ?? "")}
+            onValueChange={handleEditCompanyChange}
+          >
+            <SelectTrigger id="editCompany" className="rounded-none">
+              <SelectValue placeholder="Select company" />
+            </SelectTrigger>
+            <SelectContent>
+              {companies.map((c) => (
+                <SelectItem key={c.id} value={c.id.toString()}>
+                  {c.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
+        {/* Category */}
+        <div className="grid gap-2">
+          <Label htmlFor="editCategory">Category</Label>
+          <Select
+            value={activeTask.category || ""}
+            onValueChange={(v) => setActiveTask({ ...activeTask, category: v, tags: [v] })}
+          >
+            <SelectTrigger id="editCategory" className="rounded-none">
+              <SelectValue placeholder="Select category" />
+            </SelectTrigger>
+            <SelectContent>
+              {CATEGORIES.map((cat) => (
+                <SelectItem key={cat} value={cat}>
+                  {cat}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
+        {/* Priority + Status */}
+        <div className="grid grid-cols-2 gap-4">
+          <div className="grid gap-2">
+            <Label htmlFor="editPriority">Priority</Label>
+            <Select
+              value={activeTask.priority}
+              onValueChange={(v) =>
+                setActiveTask({ ...activeTask, priority: v as "High" | "Mid" | "Low" })
+              }
+            >
+              <SelectTrigger id="editPriority" className="rounded-none">
+                <SelectValue placeholder="Select priority" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="High">High</SelectItem>
+                <SelectItem value="Mid">Mid</SelectItem>
+                <SelectItem value="Low">Low</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="grid gap-2">
+            <Label htmlFor="editStatus">Status</Label>
+            <Select
+              value={activeTask.status}
+              onValueChange={(v) =>
+                setActiveTask({
+                  ...activeTask,
+                  status: v as "Completed" | "In Progress" | "Not Started",
+                })
+              }
+            >
+              <SelectTrigger id="editStatus" className="rounded-none">
+                <SelectValue placeholder="Select status" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="Completed">Completed</SelectItem>
+                <SelectItem value="In Progress">In Progress</SelectItem>
+                <SelectItem value="Not Started">Not Started</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+
+        {/* Due Date */}
+        <div className="grid gap-2">
+          <Label htmlFor="editDueDate">Due Date</Label>
+          <Input
+            id="editDueDate"
+            type="date"
+            className="rounded-none"
+            value={activeTask.dueDate}
+            onChange={(e) => setActiveTask({ ...activeTask, dueDate: e.target.value })}
+          />
+        </div>
+
+        {/* Notes */}
+        <div className="grid gap-2">
+          <Label htmlFor="editNotes">Notes</Label>
+          <Textarea
+            id="editNotes"
+            className="rounded-none"
+            value={activeTask.description ?? ""}
+            onChange={(e) => setActiveTask({ ...activeTask, description: e.target.value })}
+          />
+        </div>
+
+        <div className="flex items-center justify-between">
+          <Button
+            type="button"
+            variant="outline"
+            className="rounded-xl"
+            onClick={() => {
+              if (!activeTask?.id) return
+              deleteTask(activeTask.id)
+              toast({ variant: "success", title: "Deleted", description: "Task deleted." })
+              setEditOpen(false)
+            }}
+          >
+            <Trash2 className="h-4 w-4 mr-1" /> Delete Task
+          </Button>
+
+          <Button
+            type="button"
+            className="bg-[#8BC53D] hover:bg-[#476E2C] rounded-xl"
+            onClick={saveActiveTask}
+          >
+            Save Changes
+          </Button>
+        </div>
+      </div>
+    )}
+  </DialogContent>
+</Dialog>
+
 
           <div className="flex flex-wrap gap-4 mt-6">
             <Button
@@ -794,7 +1021,7 @@ const handleExportDoc = () => {
               </TableHeader>
               <TableBody>
                 {filteredWeeklyTasks.map((task) => (
-                  <TableRow key={task.id}>
+                  <TableRow key={task.id} onDoubleClick={() => openEdit(task)} className="cursor-pointer">
                     <TableCell className="font-medium">{task.title}</TableCell>
                     <TableCell>{task.company}</TableCell>
                     <TableCell>
@@ -804,7 +1031,23 @@ const handleExportDoc = () => {
                       <Badge className={getPriorityBadgeStyle(task.priority)}>{task.priority}</Badge>
                     </TableCell>
                     <TableCell>
-                      <Badge className={getStatusBadgeStyle(task.status)}>{task.status}</Badge>
+                     <Select
+                        value={task.status}
+                        onValueChange={(value) =>
+                          handleInlineStatusChange(task.id, value as "Completed" | "In Progress" | "Not Started")
+                        }
+                      >
+                        <SelectTrigger
+                          className={`h-8 w-[150px] rounded-full px-3 border-0 shadow-none focus:ring-0 ${getStatusBadgeStyle(task.status)} text-white`}
+                        >
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="Completed">Completed</SelectItem>
+                          <SelectItem value="In Progress">In Progress</SelectItem>
+                          <SelectItem value="Not Started">Not Started</SelectItem>
+                        </SelectContent>
+                      </Select>
                     </TableCell>
                     <TableCell>{task.dueDate}</TableCell>
                   </TableRow>
@@ -812,6 +1055,160 @@ const handleExportDoc = () => {
               </TableBody>
             </Table>
           </div>
+          <Dialog open={editOpen} onOpenChange={setEditOpen}>
+  <DialogContent className="sm:max-w-[500px]">
+    <DialogHeader>
+      <DialogTitle>Edit Task</DialogTitle>
+    </DialogHeader>
+
+    {activeTask && (
+      <div className="grid gap-4 py-4">
+        {/* Task Name */}
+        <div className="grid gap-2">
+          <Label htmlFor="editTaskName">Task Name</Label>
+          <Input
+            id="editTaskName"
+            className="rounded-none"
+            value={activeTask.title}
+            onChange={(e) => setActiveTask({ ...activeTask, title: e.target.value })}
+          />
+        </div>
+
+        {/* Company */}
+        <div className="grid gap-2">
+          <Label htmlFor="editCompany">Company</Label>
+          <Select
+            value={String(activeTask.companyId ?? "")}
+            onValueChange={handleEditCompanyChange}
+          >
+            <SelectTrigger id="editCompany" className="rounded-none">
+              <SelectValue placeholder="Select company" />
+            </SelectTrigger>
+            <SelectContent>
+              {companies.map((c) => (
+                <SelectItem key={c.id} value={c.id.toString()}>
+                  {c.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
+        {/* Category */}
+        <div className="grid gap-2">
+          <Label htmlFor="editCategory">Category</Label>
+          <Select
+            value={activeTask.category || ""}
+            onValueChange={(v) => setActiveTask({ ...activeTask, category: v, tags: [v] })}
+          >
+            <SelectTrigger id="editCategory" className="rounded-none">
+              <SelectValue placeholder="Select category" />
+            </SelectTrigger>
+            <SelectContent>
+              {CATEGORIES.map((cat) => (
+                <SelectItem key={cat} value={cat}>
+                  {cat}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
+        {/* Priority + Status */}
+        <div className="grid grid-cols-2 gap-4">
+          <div className="grid gap-2">
+            <Label htmlFor="editPriority">Priority</Label>
+            <Select
+              value={activeTask.priority}
+              onValueChange={(v) =>
+                setActiveTask({ ...activeTask, priority: v as "High" | "Mid" | "Low" })
+              }
+            >
+              <SelectTrigger id="editPriority" className="rounded-none">
+                <SelectValue placeholder="Select priority" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="High">High</SelectItem>
+                <SelectItem value="Mid">Mid</SelectItem>
+                <SelectItem value="Low">Low</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="grid gap-2">
+            <Label htmlFor="editStatus">Status</Label>
+            <Select
+              value={activeTask.status}
+              onValueChange={(v) =>
+                setActiveTask({
+                  ...activeTask,
+                  status: v as "Completed" | "In Progress" | "Not Started",
+                })
+              }
+            >
+              <SelectTrigger id="editStatus" className="rounded-none">
+                <SelectValue placeholder="Select status" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="Completed">Completed</SelectItem>
+                <SelectItem value="In Progress">In Progress</SelectItem>
+                <SelectItem value="Not Started">Not Started</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+
+        {/* Due Date */}
+        <div className="grid gap-2">
+          <Label htmlFor="editDueDate">Due Date</Label>
+          <Input
+            id="editDueDate"
+            type="date"
+            className="rounded-none"
+            value={activeTask.dueDate}
+            onChange={(e) => setActiveTask({ ...activeTask, dueDate: e.target.value })}
+          />
+        </div>
+
+        {/* Notes */}
+        <div className="grid gap-2">
+          <Label htmlFor="editNotes">Notes</Label>
+          <Textarea
+            id="editNotes"
+            className="rounded-none"
+            value={activeTask.description ?? ""}
+            onChange={(e) => setActiveTask({ ...activeTask, description: e.target.value })}
+          />
+        </div>
+
+        <div className="flex items-center justify-between">
+          <Button
+            type="button"
+            variant="outline"
+            className="rounded-xl"
+            onClick={() => {
+              if (!activeTask?.id) return
+              deleteTask(activeTask.id)
+              toast({ variant: "success", title: "Deleted", description: "Task deleted." })
+              setEditOpen(false)
+            }}
+          >
+            <Trash2 className="h-4 w-4 mr-1" /> Delete Task
+          </Button>
+
+          <Button
+            type="button"
+            className="bg-[#8BC53D] hover:bg-[#476E2C] rounded-xl"
+            onClick={saveActiveTask}
+          >
+            Save Changes
+          </Button>
+        </div>
+      </div>
+    )}
+  </DialogContent>
+</Dialog>
+
 
           <div className="flex flex-wrap gap-4 mt-6">
             <Button
@@ -875,7 +1272,7 @@ const handleExportDoc = () => {
               </TableHeader>
               <TableBody>
                 {filteredMonthlyTasks.map((task) => (
-                  <TableRow key={task.id}>
+                  <TableRow key={task.id} onDoubleClick={() => openEdit(task)} className="cursor-pointer">
                     <TableCell className="font-medium">{task.title}</TableCell>
                     <TableCell>{task.companies?.name || "Unknown"}</TableCell>
                     <TableCell>
@@ -885,7 +1282,23 @@ const handleExportDoc = () => {
                       <Badge className={getPriorityBadgeStyle(task.priority)}>{task.priority}</Badge>
                     </TableCell>
                     <TableCell>
-                      <Badge className={getStatusBadgeStyle(task.status)}>{task.status}</Badge>
+                     <Select
+                        value={task.status}
+                        onValueChange={(value) =>
+                          handleInlineStatusChange(task.id, value as "Completed" | "In Progress" | "Not Started")
+                        }
+                      >
+                        <SelectTrigger
+                          className={`h-8 w-[150px] rounded-full px-3 border-0 shadow-none focus:ring-0 ${getStatusBadgeStyle(task.status)} text-white`}
+                        >
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="Completed">Completed</SelectItem>
+                          <SelectItem value="In Progress">In Progress</SelectItem>
+                          <SelectItem value="Not Started">Not Started</SelectItem>
+                        </SelectContent>
+                      </Select>
                     </TableCell>
                     <TableCell>
   {new Date(task.due_date).getDate()}
@@ -897,6 +1310,160 @@ const handleExportDoc = () => {
               </TableBody>
             </Table>
           </div>
+          <Dialog open={editOpen} onOpenChange={setEditOpen}>
+  <DialogContent className="sm:max-w-[500px]">
+    <DialogHeader>
+      <DialogTitle>Edit Task</DialogTitle>
+    </DialogHeader>
+
+    {activeTask && (
+      <div className="grid gap-4 py-4">
+        {/* Task Name */}
+        <div className="grid gap-2">
+          <Label htmlFor="editTaskName">Task Name</Label>
+          <Input
+            id="editTaskName"
+            className="rounded-none"
+            value={activeTask.title}
+            onChange={(e) => setActiveTask({ ...activeTask, title: e.target.value })}
+          />
+        </div>
+
+        {/* Company */}
+        <div className="grid gap-2">
+          <Label htmlFor="editCompany">Company</Label>
+          <Select
+            value={String(activeTask.companyId ?? "")}
+            onValueChange={handleEditCompanyChange}
+          >
+            <SelectTrigger id="editCompany" className="rounded-none">
+              <SelectValue placeholder="Select company" />
+            </SelectTrigger>
+            <SelectContent>
+              {companies.map((c) => (
+                <SelectItem key={c.id} value={c.id.toString()}>
+                  {c.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
+        {/* Category */}
+        <div className="grid gap-2">
+          <Label htmlFor="editCategory">Category</Label>
+          <Select
+            value={activeTask.category || ""}
+            onValueChange={(v) => setActiveTask({ ...activeTask, category: v, tags: [v] })}
+          >
+            <SelectTrigger id="editCategory" className="rounded-none">
+              <SelectValue placeholder="Select category" />
+            </SelectTrigger>
+            <SelectContent>
+              {CATEGORIES.map((cat) => (
+                <SelectItem key={cat} value={cat}>
+                  {cat}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
+        {/* Priority + Status */}
+        <div className="grid grid-cols-2 gap-4">
+          <div className="grid gap-2">
+            <Label htmlFor="editPriority">Priority</Label>
+            <Select
+              value={activeTask.priority}
+              onValueChange={(v) =>
+                setActiveTask({ ...activeTask, priority: v as "High" | "Mid" | "Low" })
+              }
+            >
+              <SelectTrigger id="editPriority" className="rounded-none">
+                <SelectValue placeholder="Select priority" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="High">High</SelectItem>
+                <SelectItem value="Mid">Mid</SelectItem>
+                <SelectItem value="Low">Low</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="grid gap-2">
+            <Label htmlFor="editStatus">Status</Label>
+            <Select
+              value={activeTask.status}
+              onValueChange={(v) =>
+                setActiveTask({
+                  ...activeTask,
+                  status: v as "Completed" | "In Progress" | "Not Started",
+                })
+              }
+            >
+              <SelectTrigger id="editStatus" className="rounded-none">
+                <SelectValue placeholder="Select status" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="Completed">Completed</SelectItem>
+                <SelectItem value="In Progress">In Progress</SelectItem>
+                <SelectItem value="Not Started">Not Started</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+
+        {/* Due Date */}
+        <div className="grid gap-2">
+          <Label htmlFor="editDueDate">Due Date</Label>
+          <Input
+            id="editDueDate"
+            type="date"
+            className="rounded-none"
+            value={activeTask.dueDate}
+            onChange={(e) => setActiveTask({ ...activeTask, dueDate: e.target.value })}
+          />
+        </div>
+
+        {/* Notes */}
+        <div className="grid gap-2">
+          <Label htmlFor="editNotes">Notes</Label>
+          <Textarea
+            id="editNotes"
+            className="rounded-none"
+            value={activeTask.description ?? ""}
+            onChange={(e) => setActiveTask({ ...activeTask, description: e.target.value })}
+          />
+        </div>
+
+        <div className="flex items-center justify-between">
+          <Button
+            type="button"
+            variant="outline"
+            className="rounded-xl"
+            onClick={() => {
+              if (!activeTask?.id) return
+              deleteTask(activeTask.id)
+              toast({ variant: "success", title: "Deleted", description: "Task deleted." })
+              setEditOpen(false)
+            }}
+          >
+            <Trash2 className="h-4 w-4 mr-1" /> Delete Task
+          </Button>
+
+          <Button
+            type="button"
+            className="bg-[#8BC53D] hover:bg-[#476E2C] rounded-xl"
+            onClick={saveActiveTask}
+          >
+            Save Changes
+          </Button>
+        </div>
+      </div>
+    )}
+  </DialogContent>
+</Dialog>
+
 
           <div className="flex flex-wrap gap-4 mt-6">
             <Button
