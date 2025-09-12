@@ -350,7 +350,7 @@ useEffect(() => {
             className="h-8 w-auto"
           />
         </div>
-        <h1 className="text-2xl font-bold" style={{ color: "#050505" }}>
+        <h1 className="text-2xl font-bold text-foreground">
           {company.name}
         </h1>
       </div>
