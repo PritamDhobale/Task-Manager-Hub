@@ -60,8 +60,12 @@ export default function SettingsPage() {
     loadPrefs()
   }, [settings])
 
+  // Apply theme immediately + keep form in sync
   const handleThemeChange = (checked: boolean) => {
-    setFormData((prev) => ({ ...prev, theme: checked ? "dark" : "light" }))
+    const next = checked ? ("dark" as const) : ("light" as const)
+    setFormData((prev) => ({ ...prev, theme: next }))
+    // this updates context + localStorage and toggles the <html>.dark class
+    updateSettings({ theme: next })
   }
 
   const handleDefaultPageChange = (value: string) => {
@@ -113,14 +117,14 @@ export default function SettingsPage() {
               <div className="flex items-center justify-between">
                 <div>
                   <Label htmlFor="theme-toggle" className="text-base">Dark Mode</Label>
-                  <p className="text-sm text-gray-500">Switch between light and dark themes</p>
+                  <p className="text-sm text-muted-foreground">Switch between light and dark themes</p>
                 </div>
                 <Switch id="theme-toggle" checked={formData.theme === "dark"} onCheckedChange={handleThemeChange} />
               </div>
 
               <div className="space-y-2">
                 <Label className="text-base">Default Landing Page</Label>
-                <p className="text-sm text-gray-500 mb-2">Choose which page to show when you log in</p>
+                <p className="text-sm text-muted-foreground mb-2">Choose which page to show when you log in</p>
                 <RadioGroup value={formData.defaultPage} onValueChange={handleDefaultPageChange}>
                   <div className="flex items-center space-x-2">
                     <RadioGroupItem value="dashboard" id="dashboard" />

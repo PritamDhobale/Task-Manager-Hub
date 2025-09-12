@@ -25,8 +25,6 @@ import { WeeklyTaskProvider, useWeeklyTasks } from "@/contexts/weekly-task-conte
 import { User } from "@supabase/supabase-js"
 import { useProfile } from "@/contexts/profile-context"
 
-
-
 type MonthlyTask = {
   id: string
   title: string
@@ -63,7 +61,6 @@ useEffect(() => {
   }
   getUser()
 }, [])
-
 
   const params = useParams()
   const router = useRouter()
@@ -260,9 +257,19 @@ useEffect(() => {
         description: "Task added successfully!",
       })
     }
-    
-    
-    
+
+    // --- Soft-delete helpers (company page) ---
+    const softDeleteWeeklyTask = async (task: any) => {
+      await updateWeeklyTask({ ...task, status: "Deleted" })
+      await reloadWeeklyTasks()
+      toast({ variant: "success", title: "Task moved to Deleted", description: "Weekly task can be restored later." })
+    }
+
+    const softDeleteMonthlyTask = async (task: any) => {
+      await updateMonthlyTask({ ...task, status: "Deleted" })
+      await reloadMonthlyTasks()
+      toast({ variant: "success", title: "Task moved to Deleted", description: "Monthly task can be restored later." })
+    }   
 
   const handleUpdateTask = (updatedTask: any) => {
     updateTask(updatedTask)
@@ -823,28 +830,28 @@ useEffect(() => {
                               />
                             </div>
 
-                            <div className="flex justify-between mt-2">
-                              <Button
-                                type="button"
-                                variant="destructive"
-                                className="bg-red-500 hover:bg-red-600 rounded-xl"
-                                onClick={() => deleteWeeklyTask(task.id)}
-                              >
-                                <Trash2 className="h-4 w-4 mr-1" /> Delete Task
-                              </Button>
-                              <Button
-                                type="button"
-                                className="bg-[#8BC53D] hover:bg-[#476E2C] rounded-xl"
-                                onClick={() => {
-                                  document
-                                    .querySelector(`[data-state="open"]`)
-                                    ?.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" }))
-                                  toast({ variant: "success", title: "Success", description: "Task updated successfully!" })
-                                }}
-                              >
-                                Save Changes
-                              </Button>
-                            </div>
+                           <div className="flex justify-between mt-2">
+                            <Button
+                              type="button"
+                              variant="destructive"
+                              className="bg-red-500 hover:bg-red-600 rounded-xl"
+                              onClick={() => softDeleteWeeklyTask(task)}
+                            >
+                              <Trash2 className="h-4 w-4 mr-1" /> Delete Task
+                            </Button>
+                            <Button
+                              type="button"
+                              className="bg-[#8BC53D] hover:bg-[#476E2C] rounded-xl"
+                              onClick={() => {
+                                document
+                                  .querySelector(`[data-state="open"]`)
+                                  ?.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" }))
+                                toast({ variant: "success", title: "Success", description: "Task updated successfully!" })
+                              }}
+                            >
+                              Save Changes
+                            </Button>
+                          </div>
                           </div>
                         </DialogContent>
                       </Dialog>
@@ -1020,7 +1027,7 @@ useEffect(() => {
                               type="button"
                               variant="destructive"
                               className="bg-red-500 hover:bg-red-600 rounded-xl"
-                              onClick={() => handleDeleteTask(task.id)}
+                              onClick={() => softDeleteMonthlyTask(task)}
                             >
                               <Trash2 className="h-4 w-4 mr-1" /> Delete Task
                             </Button>
@@ -1028,12 +1035,9 @@ useEffect(() => {
                               type="button"
                               className="bg-[#8BC53D] hover:bg-[#476E2C] rounded-xl"
                               onClick={() => {
-                                // Close the dialog
                                 document
                                   .querySelector(`[data-state="open"]`)
                                   ?.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" }))
-
-                                // Show success toast
                                 toast({
                                   variant: "success",
                                   title: "Success",

@@ -7,6 +7,7 @@ import { getCategoryStyle } from "@/utils/category-styles"
 import { useTasks } from "@/contexts/task-context"
 import { supabase } from "@/lib/supabaseClient"
 import { useEffect } from "react"
+import Link from "next/link"
 import { useState } from "react"
 
 
@@ -51,6 +52,46 @@ useEffect(() => {
         <div className="space-y-4 flex-1 overflow-y-auto pr-2">
           {activeTasks.length > 0 ? (
             activeTasks.map((task) => (
+              <Link
+                key={task.id}
+                href={`/dashboard/task/${task.id}`}
+                className="block focus:outline-none"
+                aria-label={`Open details for ${task.title}`}
+              >
+                <div className="p-3 border rounded-xl hover:bg-muted/50 transition-colors flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                  <div>
+                    <div className="flex items-center gap-2 mb-1">
+                      <h3 className="font-medium">{task.title}</h3>
+                      {task.category && (
+                        <Badge className={getCategoryStyle(task.category)}>
+                          {task.category}
+                        </Badge>
+                      )}
+                    </div>
+                    <p className="text-sm text-gray-500">Due: {task.dueDate}</p>
+                    <p className="text-sm text-[#050505]">{task.company}</p>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    <Badge className={`${getPriorityBadgeStyle(task.priority)} min-w-[80px] text-center`}>
+                      {task.priority}
+                    </Badge>
+                    <Badge className={`${getStatusBadgeStyle(task.status)} min-w-[100px] text-center`}>
+                      {task.status}
+                    </Badge>
+                  </div>
+                </div>
+              </Link>
+            ))
+          ) : (
+            <div className="flex items-center justify-center h-32 text-gray-500">
+              No active tasks found
+            </div>
+          )}
+        </div>
+
+        {/* <div className="space-y-4 flex-1 overflow-y-auto pr-2">
+          {activeTasks.length > 0 ? (
+            activeTasks.map((task) => (
               <div
                 key={task.id}
                 className="p-3 border rounded-xl flex flex-col sm:flex-row sm:items-center justify-between gap-2"
@@ -77,7 +118,7 @@ useEffect(() => {
           ) : (
             <div className="flex items-center justify-center h-32 text-gray-500">No active tasks found</div>
           )}
-        </div>
+        </div> */}
       </CardContent>
     </Card>
   )
